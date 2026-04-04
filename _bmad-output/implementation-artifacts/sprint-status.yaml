@@ -1,0 +1,71 @@
+# generated: 2026-02-12
+# project: CoVeX
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: /Users/jb/Documents/CoVeX/_bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog -> in-progress: Automatically when first story is created (via create-story)
+#   - in-progress -> done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - SM typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2026-02-12
+project: CoVeX
+project_key: NOKEY
+tracking_system: file-system
+story_location: /Users/jb/Documents/CoVeX/_bmad-output/implementation-artifacts
+
+development_status:
+  epic-1: in-progress
+  1-1-set-up-initial-project-from-starter-template: review
+  1-2-implementer-le-moteur-de-scoring-et-de-decision: review
+  1-3-valider-et-resoudre-un-contexte-metier-explicitement-fourni: backlog
+  1-4-integrer-l-adaptateur-d-inference-locale-avec-timeouts-et-metriques: review
+  1-5-standardiser-la-gestion-d-erreurs-api-explicites: review
+  1-6-mettre-en-place-le-mecanisme retire-inference-du-modele-principal: review
+  epic-1-retrospective: optional
+
+  epic-2: in-progress
+  2-1-charger-et-valider-la-configuration-des-modeles: review
+  2-2-gerer-les-prompts-metier-via-configuration: review
+  2-3-appliquer-la-resolution-prompt-vers-modele-et-parametres-provider: review
+  2-4-activer-la-prise-en-compte-des-changements-de-configuration-sans-redemarrage: review
+  2-5-supporter-un-provider-d-inference-distant-configurable: review
+  epic-2-retrospective: optional
+
+  epic-3: in-progress
+  3-1-construire-le-playground-de-saisie-et-lancement-d-analyse: review
+  3-2-afficher-le-resultat-principal-de-maniere-lisible-et-actionnable: review
+  3-3-afficher-les-details-techniques-en-mode-opt-in: review
+  3-4-gerer-proprement-les-etats-ux-loading-erreurs-preservation-saisie: review
+  3-5-assurer-responsive-et-accessibilite-basique-du-playground: review
+  epic-3-retrospective: optional
+
+  epic-4: backlog
+  4-1-exposer-un-endpoint-health-check-fiable: backlog
+  4-2-exposer-la-liste-des-prompts-disponibles-via-api: backlog
+  epic-4-retrospective: optional

@@ -1,0 +1,15 @@
+# Shortlist de depart: cout contenu, couverture progressive.
+# Les moteurs locaux sont executes engine par engine pour eviter les bascules
+# de modele Ollama trop frequentes.
+
+local_ministral
+local_gemma3
+local_mistral_nemo
+local_phi4_mini
+
+# Remotes du moins cher au plus ambitieux.
+remote_groq_llama31_8b_instant
+remote_groq_gpt_oss_20b
+remote_openrouter_mistral_small_32_24b
+remote_openrouter_llama33_70b
+remote_google_gemini25_flash

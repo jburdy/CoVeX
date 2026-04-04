@@ -1,0 +1,153 @@
+default_inference_engine: "remote_groq_llama31_8b_instant"
+inference_engines:
+  # `cost_score` is a relative score used for comparisons inside CoVeX.
+  # Higher means more expensive; lower means cheaper.
+
+  # Local models, ordered from cheapest to most demanding.
+  # Local `cost_score` values are relative estimates based on model size,
+  # expected memory pressure, and the practical runtime cost on a local Ollama node.
+
+  local_phi4_mini:
+    type: "local"
+    model: "phi4-mini:3.8b"
+    justification: "Petit modele local pour essais rapides et cout machine minimal."
+    cost_score: 6
+    base_url: "http://127.0.0.1:11434"
+    timeout_sec: 120
+
+  local_gemma3:
+    type: "local"
+    model: "gemma3:4b"
+    justification: "Petit modele polyvalent, utile quand il faut rester leger."
+    cost_score: 7
+    base_url: "http://127.0.0.1:11434"
+    timeout_sec: 120
+
+  local_llama31:
+    type: "local"
+    model: "llama3.1:8b"
+    justification: "Base locale economique et stable pour extraction simple."
+    cost_score: 10
+    base_url: "http://127.0.0.1:11434"
+    timeout_sec: 120
+
+  local_ministral:
+    type: "local"
+    model: "ministral-3:8b"
+    justification: "Bon compromis local entre qualite, latence et memoire."
+    cost_score: 12
+    base_url: "http://127.0.0.1:11434"
+    timeout_sec: 120
+
+  local_qwen35:
+    type: "local"
+    model: "qwen3.5:9b"
+    justification: "Modele local recent avec bonne marge de qualite pour extraction."
+    cost_score: 14
+    base_url: "http://127.0.0.1:11434"
+    timeout_sec: 120
+
+  local_mistral_nemo:
+    type: "local"
+    model: "mistral-nemo:12b"
+    justification: "Contexte large et sorties souvent regulieres pour cas plus denses."
+    cost_score: 16
+    base_url: "http://127.0.0.1:11434"
+    timeout_sec: 120
+
+  local_phi4:
+    type: "local"
+    model: "phi4:14b"
+    justification: "Option locale plus solide pour precision, avec cout machine plus eleve."
+    cost_score: 18
+    base_url: "http://127.0.0.1:11434"
+    timeout_sec: 120
+
+
+  # Remote models, ordered from cheapest to most expensive.
+  # Remote `cost_score` values are approximate relative scores derived from current llm-advisor
+  # pricing snapshots, using input + output price per 1M tokens.
+
+  remote_groq_llama31_8b_instant:
+    type: "remote"
+    model: "llama-3.1-8b-instant"
+    justification: "Option distante la moins chere et tres rapide pour extraction simple."
+    cost_score: 1
+    base_url: "https://api.groq.com/openai/v1"
+    auth_env_var: "COVEX_GROQ_API_KEY"
+
+  remote_groq_gpt_oss_20b:
+    type: "remote"
+    model: "openai/gpt-oss-20b"
+    justification: "Rapidité"
+    cost_score: 2
+    base_url: "https://api.groq.com/openai/v1"
+    auth_env_var: "COVEX_GROQ_API_KEY" 
+
+  remote_openrouter_mistral_small_32_24b:
+    type: "remote"
+    model: "mistralai/mistral-small-3.2-24b-instruct"
+    justification: "Bon compromis distant entre prix contenu et sorties regulieres."
+    cost_score: 3
+    base_url: "https://openrouter.ai/api/v1"
+    auth_env_var: "COVEX_OPENROUTER_API_KEY"
+
+  remote_openrouter_llama33_70b:
+    type: "remote"
+    model: "meta-llama/llama-3.3-70b-instruct"
+    justification: "Niveau distant plus ambitieux avec cout encore contenu."
+    cost_score: 5
+    base_url: "https://openrouter.ai/api/v1"
+    auth_env_var: "COVEX_OPENROUTER_API_KEY"
+
+  remote_google_gemini31_flash_lite_preview:
+    type: "remote"
+    model: "gemini-3.1-flash-lite-preview"
+    justification: "Grand contexte et bon rapport capacites/prix cote Google."
+    cost_score: 18
+    base_url: "https://generativelanguage.googleapis.com/v1beta/openai"
+    auth_env_var: "COVEX_GOOGLE_API_KEY"
+
+  remote_openrouter_gpt41_mini:
+    type: "remote"
+    model: "openai/gpt-4.1-mini"
+    justification: "Sorties structurees fiables avec grand contexte, mais plus cher."
+    cost_score: 20
+    base_url: "https://openrouter.ai"
+    auth_env_var: "COVEX_OPENROUTER_API_KEY"
+
+  remote_google_gemini25_flash:
+    type: "remote"
+    model: "gemini-2.5-flash"
+    justification: "Option distante tres capable quand la qualite prime sur le cout."
+    cost_score: 28
+    base_url: "https://generativelanguage.googleapis.com/v1beta/openai"
+    auth_env_var: "COVEX_GOOGLE_API_KEY"
+  
+
+  # Examples for direct provider endpoints outside OpenRouter.
+  # These remain useful if you want a dedicated contract or billing path.
+
+  # remote_openai_direct:
+  #   type: "remote"
+  #   model: "gpt-4.1-mini"
+  #   base_url: "https://api.openai.com/v1"
+  #   auth_env_var: "COVEX_OPENAI_API_KEY"
+
+  # remote_anthropic_direct:
+  #   type: "remote"
+  #   model: "claude-sonnet-4-5"
+  #   base_url: "https://api.anthropic.com/v1"
+  #   auth_env_var: "COVEX_ANTHROPIC_API_KEY"
+
+  # remote_mistral_direct:
+  #   type: "remote"
+  #   model: "mistral-small-latest"
+  #   base_url: "https://api.mistral.ai/v1"
+  #   auth_env_var: "COVEX_MISTRAL_API_KEY"
+
+  # remote_gemini_direct:
+  #   type: "remote"
+  #   model: "gemini-2.5-flash"
+  #   base_url: "https://generativelanguage.googleapis.com/v1beta/openai"
+  #   auth_env_var: "COVEX_GEMINI_API_KEY"

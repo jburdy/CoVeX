@@ -1,0 +1,23 @@
+[project]
+name = "covex-playground"
+version = "0.1.0"
+description = "CoVeX playground bootstrap"
+requires-python = ">=3.14"
+dependencies = [
+  "nicegui>=3.7.1,<4.0.0",
+  "pyyaml>=6.0.0,<7.0.0",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.4.0,<10.0.0",
+  "ruff>=0.12.0,<0.13.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "tests"]
+testpaths = ["tests"]

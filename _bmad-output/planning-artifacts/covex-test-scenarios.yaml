@@ -1,0 +1,2525 @@
+# =============================================================================
+# CoVeX - Scénarios de Test & Validation Métier
+# =============================================================================
+# Version: 1.0.0
+# Date: 2026-01-31
+# Auteur: JBU (avec assistance BMAD Analyst)
+# Projet: CoVeX (Complétude Vérification eXpert)
+# =============================================================================
+
+metadata:
+  version: "1.7.0"
+  date_creation: "2026-01-31"
+  derniere_modification: "2026-02-01"
+  auteur: "JBU"
+  statut: "draft"
+  description: |
+    Référentiel complet des scénarios de test pour valider le moteur CoVeX.
+    Couvre 6 cas d'usage MVP sur 3 secteurs avec 46 scénarios de test structurés.
+    
+    HISTORIQUE :
+    v1.1.0 : Ajout scénarios personas CP et Cli pour alignement avec Product Brief.
+    v1.2.0 : Renommage des personas et scénarios avec noms positifs et bienveillants.
+    v1.3.0 : Nouveaux codes personas fun : GO, VOX, ZAP, NEW.
+    v1.4.0 : Rééquilibrage répartition scénarios par persona (5-6 chacun).
+    v1.5.0 : Extension 3 secteurs (Entreprise, Communes, Construction) avec 3 nouveaux 
+             personas (CIT, MOA, OPS) et 15 nouveaux scénarios.
+    v1.6.0 : Romandisation complète - Adaptation au contexte Suisse romande (VD, GE, VS)
+             avec toponymes, patronymes, vocabulaire administratif, normes SIA/Minergie,
+             références en CHF et contexte PME/communes romandes.
+    v1.7.0 : Extension Communes VD/FR - Ajout de 9 scénarios spécifiques aux cantons
+             de Vaud et Fribourg : Contrôle des habitants (3), Naturalisations (3),
+             Aides et subventions (3). Total : 46 scénarios.
+    
+  secteurs_couverts:
+    - nom: "Entreprise (IT/Interne)"
+      domaines: ["Tickets Support IT", "Demandes d'Achat", "Comptes-Rendus d'Intervention"]
+      personas: ["GO", "VOX", "ZAP", "NEW"]
+      contexte_regional: "PME romandes, fiduciaires, sociétés de services"
+    - nom: "Communes (Service Public)"
+      domaines: ["Demandes Citoyennes", "Contrôle des Habitants", "Naturalisations", "Aides et Subventions"]
+      personas: ["CIT"]
+      contexte_regional: "Communes vaudoises et fribourgeoises - Guichet unique, contrôle des habitants, naturalisations, subventions"
+    - nom: "Construction (BTP)"
+      domaines: ["Demandes de Devis", "Rapports de Chantier"]
+      personas: ["MOA", "OPS"]
+      contexte_regional: "Normes SIA, Minergie, permis de construire cantonaux, entreprises générales romandes"
+  
+  statistiques:
+    total_scenarios: 46
+    total_prompts_metier: 6
+    total_personas: 7
+    scenarios_par_secteur:
+      entreprise: 22
+      communes: 14
+      construction: 10
+
+# =============================================================================
+# SECTION 1 : CONFIGURATION GLOBALE
+# =============================================================================
+
+configuration:
+  echelle_scoring:
+    min: 0
+    max: 100
+    seuils:
+      ko:
+        min: 0
+        max: 30
+        decision: "KO"
+        label: "Inutilisable"
+        description: "Informations critiques manquantes, nécessite réécriture complète"
+      partiel:
+        min: 31
+        max: 70
+        decision: "PARTIEL"
+        label: "Exploitable avec effort"
+        description: "Clarifications nécessaires, traitement possible mais ralenti"
+      ok:
+        min: 71
+        max: 100
+        decision: "OK"
+        label: "Acceptable"
+        description: "Informations essentielles présentes, traitement standard"
+
+  format_output:
+    champs_obligatoires:
+      - score
+      - decision
+      - justification
+    champs_optionnels:
+      - qualite_redaction
+      - alertes
+      - recommandations
+
+# =============================================================================
+# SECTION 2 : MÉTRIQUES KPI & CRITÈRES DE SUCCÈS
+# =============================================================================
+
+kpi:
+  # ---------------------------------------------------------------------------
+  # KPI 1 : Qualité d'Évaluation (Précision du Scoring)
+  # ---------------------------------------------------------------------------
+  qualite_evaluation:
+    id: "KPI-001"
+    nom: "Précision du Scoring"
+    description: "Mesure la concordance entre le score CoVeX et l'évaluation humaine de référence"
+    
+    metriques:
+      correlation_score:
+        nom: "Corrélation Score Humain/Machine"
+        formule: "Coefficient de Pearson entre scores CoVeX et scores experts"
+        unite: "coefficient [-1, 1]"
+        seuil_minimum: 0.80
+        seuil_cible: 0.90
+        seuil_excellent: 0.95
+        methode_mesure: |
+          1. Constituer un panel de 3 experts métier minimum par domaine
+          2. Faire évaluer les 16 scénarios de test par chaque expert (score 0-100)
+          3. Calculer le score moyen expert par scénario
+          4. Calculer le coefficient de Pearson avec les scores CoVeX
+          
+      accord_decision:
+        nom: "Taux d'Accord sur la Décision"
+        formule: "(Nombre de décisions identiques / Total scénarios) × 100"
+        unite: "pourcentage"
+        seuil_minimum: 85
+        seuil_cible: 92
+        seuil_excellent: 98
+        methode_mesure: |
+          Comparer la décision CoVeX (KO/PARTIEL/OK) avec la décision majoritaire des experts
+          
+  # ---------------------------------------------------------------------------
+  # KPI 2 : Cohérence Interne
+  # ---------------------------------------------------------------------------
+  coherence_interne:
+    id: "KPI-002"
+    nom: "Cohérence Interne du Moteur"
+    description: "Vérifie que le moteur produit des résultats logiquement cohérents"
+    
+    metriques:
+      monotonie_score:
+        nom: "Respect de la Monotonie"
+        formule: "Score(minimaliste) < Score(partiel) < Score(complet) pour chaque domaine"
+        unite: "booléen (PASS/FAIL)"
+        seuil_minimum: "PASS sur 100% des triplets"
+        methode_mesure: |
+          Vérifier pour chaque cas d'usage que :
+          - Scénario minimaliste < Scénario partiel < Scénario complet
+          Triplets à tester : [1.1,1.2,1.3], [2.1,2.2,2.3], [3.1,3.2,3.3]
+          
+      resistance_bruit:
+        nom: "Résistance au Bruit Textuel"
+        formule: "Score(verbeux_hors_sujet) < Score(partiel_pertinent)"
+        unite: "booléen (PASS/FAIL)"
+        seuil_minimum: "PASS sur 100% des paires"
+        methode_mesure: |
+          Vérifier que la quantité de texte ne compense pas le manque de qualité
+          Paires à tester : [1.4 < 1.2], [2.4 < 2.2], [3.4 < 3.2]
+          
+      coherence_score_decision:
+        nom: "Cohérence Score/Décision"
+        formule: "Décision conforme aux seuils configurés"
+        unite: "pourcentage"
+        seuil_minimum: 100
+        methode_mesure: |
+          Vérifier que pour chaque scénario :
+          - Score 0-30 → Décision KO
+          - Score 31-70 → Décision PARTIEL  
+          - Score 71+ → Décision OK
+          
+      reproductibilite:
+        nom: "Reproductibilité des Résultats"
+        formule: "Écart-type des scores sur N exécutions identiques"
+        unite: "points de score"
+        seuil_minimum: 5
+        seuil_cible: 3
+        seuil_excellent: 1
+        methode_mesure: |
+          Exécuter chaque scénario 10 fois avec le même prompt métier
+          Calculer l'écart-type des scores obtenus
+
+  # ---------------------------------------------------------------------------
+  # KPI 3 : Performance Technique
+  # ---------------------------------------------------------------------------
+  performance_technique:
+    id: "KPI-003"
+    nom: "Performance d'Inférence"
+    description: "Mesure la performance technique du moteur SLM local"
+    
+    metriques:
+      latence_inference:
+        nom: "Temps de Réponse"
+        formule: "Temps entre soumission du texte et retour du résultat complet"
+        unite: "secondes"
+        seuil_minimum: 10
+        seuil_cible: 5
+        seuil_excellent: 2
+        conditions: "Texte d'entrée < 500 tokens, machine standard (16GB RAM, CPU moderne)"
+        methode_mesure: |
+          Mesurer le temps de traitement pour chaque scénario de test
+          Calculer P50, P90, P99 sur l'ensemble des scénarios
+          
+      consommation_memoire:
+        nom: "Consommation Mémoire RAM"
+        formule: "Pic de consommation mémoire pendant l'inférence"
+        unite: "GB"
+        seuil_minimum: 12
+        seuil_cible: 8
+        seuil_excellent: 6
+        conditions: "Modèle SLM chargé en mémoire"
+        
+      souverainete:
+        nom: "Conformité Souveraineté"
+        formule: "Nombre de requêtes vers API cloud externes"
+        unite: "count"
+        seuil_minimum: 0
+        seuil_cible: 0
+        seuil_excellent: 0
+        methode_mesure: |
+          Monitorer le trafic réseau pendant l'exécution des tests
+          Vérifier qu'aucune donnée n'est envoyée vers des serveurs externes
+
+  # ---------------------------------------------------------------------------
+  # KPI 4 : Valeur Métier (Impact Utilisateur)
+  # ---------------------------------------------------------------------------
+  valeur_metier:
+    id: "KPI-004"
+    nom: "Impact Métier Mesurable"
+    description: "Mesure l'impact réel sur les processus métier (test terrain)"
+    
+    metriques:
+      reduction_iterations:
+        nom: "Réduction des Allers-Retours"
+        formule: "((Iterations_avant - Iterations_après) / Iterations_avant) × 100"
+        unite: "pourcentage de réduction"
+        seuil_minimum: 30
+        seuil_cible: 50
+        seuil_excellent: 70
+        periode_mesure: "2 semaines minimum"
+        methode_mesure: |
+          Comparer le nombre moyen d'échanges de clarification :
+          - Période contrôle (sans CoVeX) : 2 semaines
+          - Période test (avec CoVeX) : 2 semaines
+          
+      progression_score_moyen:
+        nom: "Progression du Score Moyen"
+        formule: "Score_moyen_fin_periode - Score_moyen_debut_periode"
+        unite: "points"
+        seuil_minimum: 15
+        seuil_cible: 25
+        seuil_excellent: 35
+        methode_mesure: |
+          Suivre l'évolution du score moyen des soumissions sur la période de test
+          Mesurer l'effet d'apprentissage des utilisateurs
+          
+      taux_first_time_right:
+        nom: "Taux de Complétude Premier Jet"
+        formule: "(Soumissions avec score >= 70 dès le premier envoi / Total soumissions) × 100"
+        unite: "pourcentage"
+        seuil_minimum: 40
+        seuil_cible: 60
+        seuil_excellent: 80
+        methode_mesure: |
+          Mesurer le pourcentage de textes acceptables dès la première soumission
+          après introduction de CoVeX
+          
+      satisfaction_utilisateur:
+        nom: "Satisfaction Utilisateur"
+        formule: "Score NPS ou CSAT sur l'expérience CoVeX"
+        unite: "score NPS [-100, 100] ou CSAT [1-5]"
+        seuil_minimum_nps: 20
+        seuil_cible_nps: 40
+        seuil_excellent_nps: 60
+        methode_mesure: |
+          Enquête auprès des utilisateurs après la période de test
+          Questions sur : utilité perçue, facilité d'usage, recommandation
+
+  # ---------------------------------------------------------------------------
+  # KPI 5 : Qualité du Feedback Généré
+  # ---------------------------------------------------------------------------
+  qualite_feedback:
+    id: "KPI-005"
+    nom: "Qualité des Retours Générés"
+    description: "Évalue la pertinence et l'actionnabilité du feedback CoVeX"
+    
+    metriques:
+      pertinence_justification:
+        nom: "Pertinence de la Justification"
+        formule: "Note moyenne des experts sur la justification (échelle 1-5)"
+        unite: "score [1-5]"
+        seuil_minimum: 3.5
+        seuil_cible: 4.0
+        seuil_excellent: 4.5
+        methode_mesure: |
+          Faire évaluer par des experts la pertinence des justifications générées
+          Critères : exactitude, clarté, utilité pour l'amélioration
+          
+      absence_hallucination:
+        nom: "Absence d'Hallucination"
+        formule: "(Évaluations sans erreur factuelle / Total évaluations) × 100"
+        unite: "pourcentage"
+        seuil_minimum: 95
+        seuil_cible: 99
+        seuil_excellent: 100
+        methode_mesure: |
+          Vérifier que CoVeX ne demande pas d'informations :
+          - Déjà présentes dans le texte
+          - Incohérentes avec le contexte
+          - Inventées ou non pertinentes
+
+# =============================================================================
+# SECTION 3 : PROMPTS MÉTIER DE RÉFÉRENCE
+# =============================================================================
+
+prompts_metier:
+  # ---------------------------------------------------------------------------
+  # Prompt : Tickets Support IT
+  # ---------------------------------------------------------------------------
+  tickets_support_it:
+    id: "PROMPT-001"
+    nom: "Ticket Support IT"
+    domaine: "Support Informatique"
+    version: "1.0"
+    
+    prompt: |
+      Tu es un expert en évaluation de la complétude des tickets de support informatique.
+      
+      Un ticket support IT complet et exploitable doit contenir les éléments suivants :
+      
+      ÉLÉMENTS CRITIQUES (absence = score < 30) :
+      1. Identification de l'équipement concerné (type : PC, portable, imprimante, etc.)
+      2. Description du problème ou symptôme observé
+      
+      ÉLÉMENTS IMPORTANTS (absence = score < 60) :
+      3. Système d'exploitation et version
+      4. Application concernée et version (si applicable)
+      5. Message d'erreur exact (texte ou code) si affiché
+      6. Contexte de survenue (quand le problème apparaît, après quelle action)
+      
+      ÉLÉMENTS SOUHAITABLES (pour score > 80) :
+      7. Impact sur le travail (bloquant / gênant / mineur)
+      8. Actions déjà tentées par l'utilisateur
+      9. Modèle précis de l'équipement
+      10. Fréquence du problème (permanent / intermittent / occasionnel)
+      
+      Évalue le texte soumis et retourne :
+      - Un score de 0 à 100
+      - Une décision (KO si score <= 30, PARTIEL si 31-70, OK si > 70)
+      - Une justification claire de l'évaluation
+      
+    elements_evaluation:
+      critiques:
+        - id: "equipement"
+          label: "Identification équipement"
+          poids: 20
+          exemples_valides: ["PC portable", "Dell Latitude 5520", "imprimante réseau"]
+        - id: "symptome"
+          label: "Description du problème"
+          poids: 20
+          exemples_valides: ["ne démarre plus", "écran bleu", "erreur à l'ouverture"]
+      importants:
+        - id: "os_version"
+          label: "Système d'exploitation"
+          poids: 12
+        - id: "application"
+          label: "Application concernée"
+          poids: 10
+        - id: "erreur"
+          label: "Message d'erreur"
+          poids: 10
+        - id: "contexte"
+          label: "Contexte de survenue"
+          poids: 8
+      souhaitables:
+        - id: "impact"
+          label: "Impact sur le travail"
+          poids: 6
+        - id: "actions_tentees"
+          label: "Actions déjà tentées"
+          poids: 6
+        - id: "modele_precis"
+          label: "Modèle équipement"
+          poids: 4
+        - id: "frequence"
+          label: "Fréquence du problème"
+          poids: 4
+
+  # ---------------------------------------------------------------------------
+  # Prompt : Demandes d'Achat
+  # ---------------------------------------------------------------------------
+  demandes_achat:
+    id: "PROMPT-002"
+    nom: "Demande d'Achat Interne"
+    domaine: "Achats / Approvisionnement"
+    version: "1.0"
+    
+    prompt: |
+      Tu es un expert en évaluation de la complétude des demandes d'achat internes.
+      
+      Une demande d'achat complète et traitable doit contenir les éléments suivants :
+      
+      ÉLÉMENTS CRITIQUES (absence = score < 30) :
+      1. Nature de l'article ou service demandé
+      2. Justification du besoin (pourquoi, pour quel usage)
+      
+      ÉLÉMENTS IMPORTANTS (absence = score < 60) :
+      3. Spécifications techniques ou référence produit
+      4. Quantité souhaitée
+      5. Budget estimé ou plafond autorisé
+      6. Bénéficiaire (pour qui / quel service)
+      
+      ÉLÉMENTS SOUHAITABLES (pour score > 80) :
+      7. Niveau d'urgence et date limite souhaitée
+      8. Fournisseur suggéré (si connu)
+      9. Code projet ou imputation budgétaire
+      10. Alternatives acceptables
+      
+      Évalue le texte soumis et retourne :
+      - Un score de 0 à 100
+      - Une décision (KO si score <= 30, PARTIEL si 31-70, OK si > 70)
+      - Une justification claire de l'évaluation
+      
+    elements_evaluation:
+      critiques:
+        - id: "article"
+          label: "Nature article/service"
+          poids: 20
+        - id: "justification"
+          label: "Justification du besoin"
+          poids: 20
+      importants:
+        - id: "specifications"
+          label: "Spécifications/Référence"
+          poids: 12
+        - id: "quantite"
+          label: "Quantité"
+          poids: 8
+        - id: "budget"
+          label: "Budget estimé"
+          poids: 12
+        - id: "beneficiaire"
+          label: "Bénéficiaire"
+          poids: 8
+      souhaitables:
+        - id: "urgence"
+          label: "Urgence/Deadline"
+          poids: 6
+        - id: "fournisseur"
+          label: "Fournisseur suggéré"
+          poids: 4
+        - id: "imputation"
+          label: "Code projet/Budget"
+          poids: 5
+        - id: "alternatives"
+          label: "Alternatives acceptables"
+          poids: 5
+
+  # ---------------------------------------------------------------------------
+  # Prompt : Comptes-Rendus d'Intervention
+  # ---------------------------------------------------------------------------
+  cr_intervention:
+    id: "PROMPT-003"
+    nom: "Compte-Rendu d'Intervention Terrain"
+    domaine: "Maintenance / Services Terrain"
+    version: "1.0"
+    
+    prompt: |
+      Tu es un expert en évaluation de la complétude des comptes-rendus d'intervention.
+      
+      Un compte-rendu d'intervention complet et exploitable doit contenir les éléments suivants :
+      
+      ÉLÉMENTS CRITIQUES (absence = score < 30) :
+      1. Identification client/site (nom, référence)
+      2. Actions réalisées (description des opérations effectuées)
+      
+      ÉLÉMENTS IMPORTANTS (absence = score < 60) :
+      3. Date et durée de l'intervention
+      4. Objet/motif de l'intervention
+      5. Constat initial à l'arrivée
+      6. État de fonctionnement au départ
+      
+      ÉLÉMENTS SOUHAITABLES (pour score > 80) :
+      7. Pièces/matériaux utilisés ou remplacés (avec références)
+      8. Mesures ou relevés effectués
+      9. Recommandations ou alertes pour le futur
+      10. Validation/signature client
+      
+      Évalue le texte soumis et retourne :
+      - Un score de 0 à 100
+      - Une décision (KO si score <= 30, PARTIEL si 31-70, OK si > 70)
+      - Une justification claire de l'évaluation
+      
+    elements_evaluation:
+      critiques:
+        - id: "client_site"
+          label: "Identification client/site"
+          poids: 15
+        - id: "actions"
+          label: "Actions réalisées"
+          poids: 25
+      importants:
+        - id: "date_duree"
+          label: "Date et durée"
+          poids: 10
+        - id: "objet"
+          label: "Objet intervention"
+          poids: 10
+        - id: "constat"
+          label: "Constat initial"
+          poids: 10
+        - id: "etat_final"
+          label: "État au départ"
+          poids: 10
+      souhaitables:
+        - id: "pieces"
+          label: "Pièces utilisées"
+          poids: 6
+        - id: "mesures"
+          label: "Mesures/Relevés"
+          poids: 5
+        - id: "recommandations"
+          label: "Recommandations"
+          poids: 5
+        - id: "validation"
+          label: "Validation client"
+          poids: 4
+
+  # ---------------------------------------------------------------------------
+  # Prompt : Demandes Citoyennes (Communes)
+  # ---------------------------------------------------------------------------
+  demandes_citoyennes:
+    id: "PROMPT-004"
+    nom: "Demande Citoyenne"
+    domaine: "Service Public / Communes"
+    version: "1.1"
+    
+    prompt: |
+      Tu es un expert en évaluation de la complétude des demandes citoyennes adressées aux services communaux en Suisse romande.
+      
+      Une demande citoyenne complète et traitable doit contenir les éléments suivants :
+      
+      ÉLÉMENTS CRITIQUES (absence = score < 30) :
+      1. Nature de la demande (type de démarche ou service sollicité)
+      2. Identification du demandeur (nom, prénom, ou référence dossier)
+      
+      ÉLÉMENTS IMPORTANTS (absence = score < 60) :
+      3. Adresse complète du demandeur ou du lieu concerné
+      4. Coordonnées de contact (téléphone ou email)
+      5. Motif ou justification de la demande
+      6. Pièces jointes mentionnées ou fournies (si applicable)
+      
+      ÉLÉMENTS SOUHAITABLES (pour score > 80) :
+      7. Dates pertinentes (date souhaitée, date de l'événement, échéance)
+      8. Numéro de dossier existant (si suite de démarche)
+      9. Situation familiale ou professionnelle (si pertinent)
+      10. Précisions complémentaires facilitant le traitement
+      
+      Évalue le texte soumis et retourne :
+      - Un score de 0 à 100
+      - Une décision (KO si score <= 30, PARTIEL si 31-70, OK si > 70)
+      - Une justification claire et bienveillante
+      
+      IMPORTANT : Adopte un ton accueillant et pédagogique, adapté au grand public.
+      CONTEXTE SUISSE : Vocabulaire adapté (Commune, Syndic, Contrôle des habitants, permis de séjour, AVS, etc.)
+      
+    elements_evaluation:
+      critiques:
+        - id: "nature_demande"
+          label: "Nature de la demande"
+          poids: 20
+          exemples_valides: ["annonce d'arrivée", "demande de permis de construire", "signalement voirie", "inscription école"]
+        - id: "identite"
+          label: "Identification demandeur"
+          poids: 20
+      importants:
+        - id: "adresse"
+          label: "Adresse complète"
+          poids: 12
+        - id: "contact"
+          label: "Coordonnées contact"
+          poids: 10
+        - id: "motif"
+          label: "Motif/Justification"
+          poids: 10
+        - id: "pieces"
+          label: "Pièces jointes"
+          poids: 8
+      souhaitables:
+        - id: "dates"
+          label: "Dates pertinentes"
+          poids: 6
+        - id: "reference_dossier"
+          label: "Numéro dossier existant"
+          poids: 5
+        - id: "situation"
+          label: "Situation familiale/pro"
+          poids: 5
+        - id: "precisions"
+          label: "Précisions complémentaires"
+          poids: 4
+
+  # ---------------------------------------------------------------------------
+  # Prompt : Demandes de Devis Construction
+  # ---------------------------------------------------------------------------
+  demandes_devis_construction:
+    id: "PROMPT-005"
+    nom: "Demande de Devis Construction"
+    domaine: "BTP / Construction"
+    version: "1.1"
+    
+    prompt: |
+      Tu es un expert en évaluation de la complétude des demandes de devis pour travaux de construction/rénovation en Suisse romande.
+      
+      Une demande de devis complète et chiffrable doit contenir les éléments suivants :
+      
+      ÉLÉMENTS CRITIQUES (absence = score < 30) :
+      1. Nature des travaux souhaités (construction, extension, rénovation, type d'ouvrage)
+      2. Localisation du chantier (adresse ou commune)
+      
+      ÉLÉMENTS IMPORTANTS (absence = score < 60) :
+      3. Surface ou dimensions approximatives
+      4. Description du projet (usage prévu, nombre de pièces, étages...)
+      5. Budget indicatif ou fourchette envisagée
+      6. Délai souhaité ou contraintes de planning
+      
+      ÉLÉMENTS SOUHAITABLES (pour score > 80) :
+      7. État actuel du bien (neuf, existant, à démolir)
+      8. Contraintes techniques connues (terrain, accès, mitoyenneté)
+      9. Permis ou autorisations en cours/obtenus (mise à l'enquête, permis de construire)
+      10. Coordonnées complètes et disponibilités pour visite
+      
+      Évalue le texte soumis et retourne :
+      - Un score de 0 à 100
+      - Une décision (KO si score <= 30, PARTIEL si 31-70, OK si > 70)
+      - Une justification claire de l'évaluation
+      
+      CONTEXTE SUISSE : Normes SIA, labels Minergie, permis de construire cantonaux, mise à l'enquête publique.
+      
+    elements_evaluation:
+      critiques:
+        - id: "nature_travaux"
+          label: "Nature des travaux"
+          poids: 20
+          exemples_valides: ["extension 30m²", "réfection toiture", "construction garage", "rénovation énergétique Minergie"]
+        - id: "localisation"
+          label: "Localisation chantier"
+          poids: 20
+      importants:
+        - id: "dimensions"
+          label: "Surface/Dimensions"
+          poids: 12
+        - id: "description"
+          label: "Description projet"
+          poids: 10
+        - id: "budget"
+          label: "Budget indicatif"
+          poids: 10
+        - id: "delai"
+          label: "Délai souhaité"
+          poids: 8
+      souhaitables:
+        - id: "etat_actuel"
+          label: "État actuel du bien"
+          poids: 6
+        - id: "contraintes"
+          label: "Contraintes techniques"
+          poids: 5
+        - id: "permis"
+          label: "Permis/Autorisations"
+          poids: 5
+        - id: "contact_visite"
+          label: "Contact pour visite"
+          poids: 4
+
+  # ---------------------------------------------------------------------------
+  # Prompt : Rapports de Chantier
+  # ---------------------------------------------------------------------------
+  rapports_chantier:
+    id: "PROMPT-006"
+    nom: "Rapport de Chantier"
+    domaine: "BTP / Suivi Travaux"
+    version: "1.0"
+    
+    prompt: |
+      Tu es un expert en évaluation de la complétude des rapports de chantier et journaux de bord terrain.
+      
+      Un rapport de chantier complet et exploitable doit contenir les éléments suivants :
+      
+      ÉLÉMENTS CRITIQUES (absence = score < 30) :
+      1. Identification du chantier (nom, référence, adresse)
+      2. Date du rapport et période couverte
+      
+      ÉLÉMENTS IMPORTANTS (absence = score < 60) :
+      3. Travaux réalisés dans la journée/période
+      4. Effectifs présents (équipe, sous-traitants)
+      5. Conditions météo (si impact sur travaux)
+      6. État d'avancement global (% ou jalon)
+      
+      ÉLÉMENTS SOUHAITABLES (pour score > 80) :
+      7. Matériaux livrés ou consommés
+      8. Incidents, difficultés rencontrées ou points de vigilance
+      9. Prévisions pour la prochaine période
+      10. Photos ou références de documentation visuelle
+      
+      Évalue le texte soumis et retourne :
+      - Un score de 0 à 100
+      - Une décision (KO si score <= 30, PARTIEL si 31-70, OK si > 70)
+      - Une justification claire de l'évaluation
+      
+    elements_evaluation:
+      critiques:
+        - id: "chantier"
+          label: "Identification chantier"
+          poids: 15
+        - id: "date_periode"
+          label: "Date et période"
+          poids: 15
+      importants:
+        - id: "travaux_realises"
+          label: "Travaux réalisés"
+          poids: 15
+        - id: "effectifs"
+          label: "Effectifs présents"
+          poids: 10
+        - id: "meteo"
+          label: "Conditions météo"
+          poids: 8
+        - id: "avancement"
+          label: "État d'avancement"
+          poids: 12
+      souhaitables:
+        - id: "materiaux"
+          label: "Matériaux"
+          poids: 6
+        - id: "incidents"
+          label: "Incidents/Difficultés"
+          poids: 7
+        - id: "previsions"
+          label: "Prévisions J+1"
+          poids: 6
+        - id: "photos"
+          label: "Photos/Documentation"
+          poids: 6
+
+# =============================================================================
+# SECTION 4 : SCÉNARIOS DE TEST
+# =============================================================================
+
+scenarios_test:
+  # ---------------------------------------------------------------------------
+  # CAS 1 : TICKETS SUPPORT IT
+  # ---------------------------------------------------------------------------
+  tickets_support_it:
+    prompt_ref: "PROMPT-001"
+    
+    scenarios:
+      # Scénario 1.1 - Ultra-Concis
+      - id: "TC-IT-001"
+        nom: "L'Ultra-Concis"
+        description: "Ticket minimaliste typique d'une journée chargée - Persona Terrain"
+        tags: ["critique", "edge-case", "minimaliste", "persona-go"]
+        
+        input:
+          texte: "ça marche pas"
+          metadata:
+            source: "formulaire_web"
+            auteur_type: "utilisateur_final"
+        
+        output_attendu:
+          score:
+            min: 5
+            max: 15
+          decision: "KO"
+          justification_contient:
+            - "inexploitable"
+            - "aucune information"
+        criteres_succes:
+          - "Score < 20"
+          - "Décision = KO"
+
+      # Scénario 1.2 - Standard Courant
+      - id: "TC-IT-002"
+        nom: "Le Standard Courant"
+        description: "Ticket moyen d'un demandeur efficace - Persona ZAP"
+        tags: ["typique", "partiel", "baseline", "persona-zap"]
+        
+        input:
+          texte: "Outlook plante depuis ce matin sur mon PC portable. J'ai redémarré mais ça continue."
+          metadata:
+            source: "email"
+            auteur_type: "utilisateur_final"
+        
+        output_attendu:
+          score:
+            min: 35
+            max: 50
+          decision: "PARTIEL"
+          justification_contient:
+            - "identifiable"
+            - "insuffisant"
+        criteres_succes:
+          - "Score entre 30 et 55"
+          - "Décision = PARTIEL"
+
+      # Scénario 1.3 - Modèle de Référence
+      - id: "TC-IT-003"
+        nom: "Le Modèle de Référence"
+        description: "Ticket exemplaire permettant une résolution optimale"
+        tags: ["exemplaire", "complet", "gold-standard", "persona-go"]
+        
+        input:
+          texte: |
+            PC portable Dell Latitude 5520, Windows 11 Pro 22H2. 
+            Outlook 365 version 2401 se ferme brutalement sans message d'erreur 
+            environ 30 secondes après l'ouverture. 
+            Le problème a commencé ce matin après la mise à jour Windows de la nuit. 
+            C'est bloquant car je ne peux pas accéder à mes mails. 
+            J'ai tenté : redémarrage du PC, réparation Office via Paramètres, 
+            création d'un nouveau profil Outlook. Rien n'a fonctionné.
+            Poste situé au bureau de Morges.
+          metadata:
+            source: "formulaire_itsm"
+            auteur_type: "utilisateur_avance"
+        
+        output_attendu:
+          score:
+            min: 85
+            max: 95
+          decision: "OK"
+          justification_contient:
+            - "complet"
+            - "diagnostic"
+        criteres_succes:
+          - "Score > 80"
+          - "Décision = OK"
+
+      # Scénario 1.4 - Contexte Relationnel
+      - id: "TC-IT-004"
+        nom: "Le Contexte Relationnel"
+        description: "Message riche en contexte humain, à compléter techniquement - Persona VOX"
+        tags: ["piège", "relationnel", "context-gap", "persona-vox"]
+        
+        input:
+          texte: |
+            Bonjour, je vous contacte car j'ai un gros problème avec mon ordinateur 
+            depuis quelques jours et c'est vraiment très embêtant pour mon travail. 
+            Mon collègue Jean-Marc m'a dit de vous contacter parce que lui aussi 
+            avait eu un problème similaire le mois dernier et vous l'aviez bien aidé. 
+            En fait c'est lent et ça bug souvent. Est-ce que vous pourriez passer 
+            me voir quand vous avez un moment ? Je suis au bureau 324, site de Pully. 
+            Merci d'avance pour votre aide précieuse !
+          metadata:
+            source: "email"
+            auteur_type: "utilisateur_final"
+        
+        output_attendu:
+          score:
+            min: 15
+            max: 30
+          decision: "KO"
+          justification_contient:
+            - "manquant"
+            - "technique"
+          observations:
+            - "Contexte relationnel abondant mais peu d'éléments techniques"
+        
+        criteres_succes:
+          - "Score < 35 malgré la longueur"
+          - "Décision = KO"
+          - "Identification du décalage contenu/utilité"
+
+      # Scénario 1.5 - Fiche Technique Pure
+      - id: "TC-IT-005"
+        nom: "La Fiche Technique Pure"
+        description: "Configuration détaillée, symptôme à préciser"
+        tags: ["piège", "technique-seule", "persona-go"]
+        
+        input:
+          texte: |
+            Dell Latitude 5520, Windows 11 Pro 23H2, 16Go RAM, SSD 512Go, 
+            Office 365 E3, Outlook version 16.0.17328.20162
+          metadata:
+            source: "formulaire_itsm"
+            auteur_type: "utilisateur_avance"
+        
+        output_attendu:
+          score:
+            min: 25
+            max: 40
+          decision: "KO"
+          justification_contient:
+            - "configuration"
+            - "problème non décrit"
+        criteres_succes:
+          - "Score modéré (25-40)"
+          - "Identification claire que le PROBLÈME manque"
+
+      # Scénario 1.6 - Multi-Sujets
+      - id: "TC-IT-006"
+        nom: "Le Multi-Sujets"
+        description: "Plusieurs points regroupés, à structurer"
+        tags: ["complexe", "multi-sujet", "edge-case"]
+        
+        input:
+          texte: |
+            Mon PC est lent, Outlook plante, et en plus l'imprimante ne marche plus 
+            depuis la semaine dernière. Ah et Teams aussi des fois ça coupe 
+            pendant les réunions.
+          metadata:
+            source: "email"
+            auteur_type: "utilisateur_final"
+        
+        output_attendu:
+          score:
+            min: 20
+            max: 35
+          decision: "KO"
+          justification_contient:
+            - "plusieurs problèmes"
+            - "distincts"
+          recommandations:
+            - "Créer un ticket séparé par problème"
+        
+        criteres_succes:
+          - "Détection du mélange de problèmes"
+          - "Recommandation de séparation"
+
+      # Scénario 1.7 - Première Demande Support (Persona NEW)
+      - id: "TC-IT-007"
+        nom: "La Première Demande Support"
+        description: "Nouvel utilisateur découvrant le système de tickets - Persona NEW"
+        tags: ["onboarding", "guidage", "persona-new"]
+        
+        input:
+          texte: |
+            Bonjour, c'est ma première semaine dans l'entreprise et je n'arrive 
+            pas à me connecter au logiciel dont on m'a parlé en formation. 
+            Est-ce que quelqu'un peut m'aider ?
+          metadata:
+            source: "formulaire_web"
+            auteur_type: "nouvel_utilisateur_new"
+        
+        output_attendu:
+          score:
+            min: 15
+            max: 30
+          decision: "KO"
+          justification_contient:
+            - "identification"
+            - "précisions"
+          observations:
+            - "Nouvel arrivant à accompagner"
+        
+        criteres_succes:
+          - "Score bas mais feedback encourageant"
+          - "Ton bienveillant, pas de jargon technique intimidant"
+
+      # Scénario 1.8 - Question Documentation (Persona NEW)
+      - id: "TC-IT-008"
+        nom: "La Question Documentation"
+        description: "Découvreur cherchant de l'aide pour comprendre un outil - Persona NEW"
+        tags: ["documentation", "apprentissage", "persona-new"]
+        
+        input:
+          texte: |
+            Comment on fait pour créer un rapport dans l'application ? 
+            J'ai cherché mais je ne trouve pas.
+          metadata:
+            source: "chat_support"
+            auteur_type: "utilisateur_new"
+        
+        output_attendu:
+          score:
+            min: 20
+            max: 35
+          decision: "KO"
+          justification_contient:
+            - "contexte"
+            - "application"
+          observations:
+            - "Demande d'aide légitime à contextualiser"
+        
+        criteres_succes:
+          - "Identification du besoin de formation/documentation"
+
+  # ---------------------------------------------------------------------------
+  # CAS 2 : DEMANDES D'ACHAT
+  # ---------------------------------------------------------------------------
+  demandes_achat:
+    prompt_ref: "PROMPT-002"
+    
+    scenarios:
+      # Scénario 2.1 - L'Essentiel
+      - id: "TC-ACH-001"
+        nom: "L'Essentiel"
+        description: "Demande spontanée à enrichir - Persona Direct"
+        tags: ["minimaliste", "critique", "persona-zap"]
+        
+        input:
+          texte: "Il me faut une souris"
+          metadata:
+            source: "formulaire_achats"
+            auteur_type: "demandeur"
+        
+        output_attendu:
+          score:
+            min: 8
+            max: 18
+          decision: "KO"
+          justification_contient:
+            - "vague"
+            - "insuffisant"
+        criteres_succes:
+          - "Score < 20"
+          - "Identification exhaustive des manques"
+
+      # Scénario 2.2 - Demande Standard
+      - id: "TC-ACH-002"
+        nom: "La Demande Standard"
+        description: "Besoin clair, quelques précisions à ajouter"
+        tags: ["typique", "partiel", "persona-zap"]
+        
+        input:
+          texte: |
+            J'aurais besoin d'un écran 27 pouces pour remplacer mon ancien 
+            qui est tombé en panne. C'est assez urgent car je travaille 
+            sur deux écrans normalement.
+          metadata:
+            source: "email"
+            auteur_type: "demandeur"
+        
+        output_attendu:
+          score:
+            min: 40
+            max: 55
+          decision: "PARTIEL"
+        criteres_succes:
+          - "Score entre 35 et 60"
+
+      # Scénario 2.3 - Demande Modèle
+      - id: "TC-ACH-003"
+        nom: "La Demande Modèle"
+        description: "Exemple de demande prête à traiter"
+        tags: ["exemplaire", "gold-standard", "persona-zap"]
+        
+        input:
+          texte: |
+            Demande d'achat : Écran Dell UltraSharp U2722D 27 pouces 
+            (référence DELL-U2722D), quantité 1, budget max 550 CHF HT. 
+            Justification : remplacement écran HS (panne carte mère confirmée par IT). 
+            Bénéficiaire : Sophie Rochat, service Comptabilité. 
+            Urgence : haute, nécessaire avant clôture mensuelle le 05/02. 
+            Fournisseur suggéré : Digitec Pro (contrat cadre existant).
+          metadata:
+            source: "formulaire_achats"
+            auteur_type: "demandeur_experimente"
+        
+        output_attendu:
+          score:
+            min: 90
+            max: 100
+          decision: "OK"
+        criteres_succes:
+          - "Score > 85"
+          - "Aucun manquant critique"
+
+      # Scénario 2.4 - Besoin Ouvert
+      - id: "TC-ACH-004"
+        nom: "Le Besoin Ouvert"
+        description: "Besoin à préciser ensemble"
+        tags: ["piège", "besoin-ouvert", "clarification"]
+        
+        input:
+          texte: |
+            Il nous faudrait du matériel pour équiper la nouvelle salle de réunion. 
+            Je vous laisse voir ce qui serait bien, vous connaissez mieux que moi. 
+            Budget à définir avec la direction.
+          metadata:
+            source: "email"
+            auteur_type: "manager"
+        
+        output_attendu:
+          score:
+            min: 10
+            max: 25
+          decision: "KO"
+          justification_contient:
+            - "définition du besoin"
+            - "demandeur"
+          observations:
+            - "Le demandeur doit définir son besoin"
+        
+        criteres_succes:
+          - "Score bas"
+          - "Identification du problème de non-définition"
+
+      # Scénario 2.5 - Urgence Contextuelle
+      - id: "TC-ACH-005"
+        nom: "L'Urgence Contextuelle"
+        description: "Situation urgente nécessitant des précisions rapides"
+        tags: ["piège", "urgence", "persona-zap"]
+        
+        input:
+          texte: |
+            URGENT !!! Il me faut absolument un nouveau laptop AUJOURD'HUI, 
+            le mien ne s'allume plus et j'ai une présentation client demain matin. 
+            Faites au plus vite SVP !!!
+          metadata:
+            source: "email"
+            auteur_type: "demandeur"
+        
+        output_attendu:
+          score:
+            min: 25
+            max: 40
+          decision: "KO"
+          justification_contient:
+            - "urgence"
+            - "informations"
+            - "manquantes"
+          observations:
+            - "Une demande urgente nécessite PLUS de précisions"
+        
+        criteres_succes:
+          - "Non-influence de l'urgence émotionnelle sur le score"
+          - "Identification des vrais manques"
+
+      # Scénario 2.6 - Première Demande Portail (Persona NEW)
+      - id: "TC-ACH-006"
+        nom: "La Première Demande Portail"
+        description: "Client externe découvrant le système - Persona NEW (Le Découvreur)"
+        tags: ["persona-new", "client-externe", "onboarding"]
+        
+        input:
+          texte: |
+            Bonjour, je voudrais commander des pièces pour ma machine. 
+            C'est le modèle qu'on a acheté l'année dernière chez vous. 
+            Pouvez-vous m'envoyer un devis rapidement ? Merci.
+          metadata:
+            source: "portail_client"
+            auteur_type: "client_externe"
+        
+        output_attendu:
+          score:
+            min: 10
+            max: 25
+          decision: "KO"
+          justification_contient:
+            - "identification"
+            - "référence"
+            - "spécifications"
+          observations:
+            - "Nouvel utilisateur à accompagner"
+        
+        criteres_succes:
+          - "Score bas mais feedback encourageant"
+          - "Ton d'accompagnement, pas de rejet"
+
+  # ---------------------------------------------------------------------------
+  # CAS 3 : COMPTES-RENDUS D'INTERVENTION
+  # ---------------------------------------------------------------------------
+  cr_intervention:
+    prompt_ref: "PROMPT-003"
+    
+    scenarios:
+      # Scénario 3.1 - CR Express
+      - id: "TC-CR-001"
+        nom: "Le CR Express"
+        description: "Note rapide de fin d'intervention - Persona Terrain"
+        tags: ["critique", "minimaliste", "persona-go"]
+        
+        input:
+          texte: "Intervention OK. RAS."
+          metadata:
+            source: "app_mobile_terrain"
+            auteur_type: "technicien_go"
+        
+        output_attendu:
+          score:
+            min: 3
+            max: 10
+          decision: "KO"
+          justification_contient:
+            - "vide"
+            - "inexploitable"
+          alertes:
+            - "Aucune traçabilité possible"
+        criteres_succes:
+          - "Score minimal (< 15)"
+          - "Alerte sur risque traçabilité"
+
+      # Scénario 3.2 - CR Fonctionnel
+      - id: "TC-CR-002"
+        nom: "Le CR Fonctionnel"
+        description: "L'essentiel documenté, détails à enrichir"
+        tags: ["typique", "acceptable-minimum", "persona-go"]
+        
+        input:
+          texte: |
+            Client Baud & Fils SA, site Yverdon-les-Bains. 
+            Maintenance préventive climatisation. 
+            Filtres encrassés remplacés. 
+            Système fonctionnel au départ.
+          metadata:
+            source: "app_mobile_terrain"
+            auteur_type: "technicien_go"
+        
+        output_attendu:
+          score:
+            min: 45
+            max: 60
+          decision: "PARTIEL"
+        criteres_succes:
+          - "Score intermédiaire"
+          - "Identification des améliorations possibles"
+
+      # Scénario 3.3 - CR de Référence
+      - id: "TC-CR-003"
+        nom: "Le CR de Référence"
+        description: "Exemple de traçabilité complète - Modèle VOX formalisé"
+        tags: ["exemplaire", "gold-standard", "persona-vox"]
+        
+        input:
+          texte: |
+            Client : Baud & Fils SA - Site Yverdon-les-Bains (Réf. CLI-2847). 
+            Date : 31/01/2026, 09h00-11h30 (2h30). 
+            Objet : Maintenance préventive annuelle climatisation hall production. 
+            Constat arrivée : Filtres très encrassés (dernier changement >14 mois), 
+            niveau fluide frigorigène OK (R410A : 2.3kg), évaporateur légèrement sale, 
+            aucune fuite détectée. 
+            Actions réalisées : Remplacement filtres (réf. FILT-CTA-4500 x4), 
+            nettoyage évaporateur au nettoyant biocide, vérification des connexions 
+            électriques, test cycle complet. 
+            Pièces : 4x Filtres FILT-CTA-4500 (stock véhicule), 1x Biocide CLIM-CLEAN 500ml. 
+            État départ : Système 100% fonctionnel, T° consigne 21°C atteinte en 8 min (conforme). 
+            Recommandations : Planifier prochaine maintenance dans 10-12 mois max. 
+            Surveiller consommation électrique (compteur relevé : 847 kWh). 
+            Intervention validée par M. Germanier (resp. maintenance site).
+          metadata:
+            source: "app_mobile_terrain"
+            auteur_type: "manager_vox"
+        
+        output_attendu:
+          score:
+            min: 92
+            max: 100
+          decision: "OK"
+        criteres_succes:
+          - "Score > 90"
+          - "Reconnaissance de la qualité documentaire"
+
+      # Scénario 3.4 - CR avec Signal
+      - id: "TC-CR-004"
+        nom: "Le CR avec Signal"
+        description: "Intervention avec point relationnel à documenter - Persona VOX"
+        tags: ["piège", "signal-faible", "persona-vox"]
+        
+        input:
+          texte: |
+            Intervention dépannage chez Chapuis & Associés, Lausanne. 
+            Problème résolu. Le client n'était pas très content au départ 
+            mais c'est arrangé maintenant.
+          metadata:
+            source: "app_mobile_terrain"
+            auteur_type: "manager_vox"
+        
+        output_attendu:
+          score:
+            min: 15
+            max: 30
+          decision: "KO"
+          justification_contient:
+            - "incident"
+            - "documentation"
+          alertes:
+            - "Mécontentement client mentionné sans explication"
+        
+        criteres_succes:
+          - "Score bas"
+          - "Détection du signal d'alerte relationnel"
+
+      # Scénario 3.5 - CR Standardisé
+      - id: "TC-CR-005"
+        nom: "Le CR Standardisé"
+        description: "Template à personnaliser avec les détails de l'intervention"
+        tags: ["piège", "template", "a-personnaliser", "persona-new"]
+        
+        input:
+          texte: |
+            Intervention de maintenance effectuée conformément au contrat. 
+            Vérifications standard réalisées. 
+            Équipement en bon état de fonctionnement. 
+            Aucune anomalie détectée. 
+            Prochaine intervention selon planning.
+          metadata:
+            source: "formulaire_web"
+            auteur_type: "nouvel_utilisateur_new"
+        
+        output_attendu:
+          score:
+            min: 20
+            max: 35
+          decision: "KO"
+          justification_contient:
+            - "générique"
+            - "spécifique"
+          observations:
+            - "Ce CR pourrait s'appliquer à n'importe quelle intervention"
+        
+        criteres_succes:
+          - "Détection du caractère générique/template"
+          - "Score pénalisé malgré la structure apparente"
+
+      # Scénario 3.6 - Note de Suivi Projet (Persona VOX)
+      - id: "TC-CR-006"
+        nom: "La Note de Suivi Projet"
+        description: "Synthèse orale à formaliser - Persona VOX (Le Communicant)"
+        tags: ["persona-vox", "suivi-projet", "savoir-tacite"]
+        
+        input:
+          texte: |
+            Point projet Alpha avec l'équipe ce matin. 
+            On avance bien, quelques soucis sur le module de paiement mais 
+            Thomas gère. Prochaine étape : finaliser l'intégration. 
+            J'ai validé avec le client par téléphone, il est OK.
+          metadata:
+            source: "email"
+            auteur_type: "chef_projet_vox"
+        
+        output_attendu:
+          score:
+            min: 20
+            max: 35
+          decision: "KO"
+          justification_contient:
+            - "contexte"
+            - "détails"
+            - "traçabilité"
+          observations:
+            - "Échanges oraux à formaliser"
+            - "Décisions à tracer pour continuité"
+            - "Permettre reprise du dossier par un tiers"
+        
+        criteres_succes:
+          - "Score modéré malgré ton positif ('avance bien')"
+          - "Identification des éléments à formaliser"
+          - "Accompagnement vers une meilleure traçabilité"
+
+      # Scénario 3.7 - Retour Client Externe (Persona NEW)
+      - id: "TC-CR-007"
+        nom: "Le Retour Client Externe"
+        description: "Client externe décrivant son expérience après intervention - Persona NEW"
+        tags: ["persona-new", "feedback-client", "onboarding"]
+        
+        input:
+          texte: |
+            Bonjour, le technicien est passé hier pour la climatisation. 
+            Ça a l'air de remarcher maintenant. Merci pour votre réactivité !
+          metadata:
+            source: "portail_client"
+            auteur_type: "client_new"
+        
+        output_attendu:
+          score:
+            min: 25
+            max: 40
+          decision: "KO"
+          justification_contient:
+            - "détails"
+            - "intervention"
+          observations:
+            - "Feedback positif à enrichir pour traçabilité"
+            - "Guider vers les informations utiles sans décourager"
+        
+        criteres_succes:
+          - "Valorisation du retour positif"
+          - "Guidage bienveillant vers plus de détails"
+          - "Ton encourageant"
+
+      # Scénario 3.8 - Note de Réunion Express (Persona VOX)
+      - id: "TC-CR-008"
+        nom: "La Note de Réunion Express"
+        description: "Prise de notes rapide post-réunion - Persona VOX"
+        tags: ["persona-vox", "reunion", "formalisation"]
+        
+        input:
+          texte: |
+            Réunion équipe commerciale - points discutés : 
+            - Objectifs Q2 OK
+            - Nouveau client potentiel (à recontacter)
+            - Formation produit à planifier
+            Prochaine réunion dans 2 semaines.
+          metadata:
+            source: "email"
+            auteur_type: "manager_vox"
+        
+        output_attendu:
+          score:
+            min: 35
+            max: 50
+          decision: "PARTIEL"
+          justification_contient:
+            - "structure"
+            - "détails"
+          observations:
+            - "Bonne structure de départ"
+            - "Actions à préciser avec responsables et délais"
+        
+        criteres_succes:
+          - "Score intermédiaire (structure présente)"
+          - "Encouragement à formaliser les décisions"
+
+  # ---------------------------------------------------------------------------
+  # CAS 4 : DEMANDES CITOYENNES (Communes)
+  # ---------------------------------------------------------------------------
+  demandes_citoyennes:
+    prompt_ref: "PROMPT-004"
+    
+    scenarios:
+      # Scénario 4.1 - Demande Minimaliste
+      - id: "TC-CIT-001"
+        nom: "La Demande Minimaliste"
+        description: "Message citoyen très succinct - Persona CIT"
+        tags: ["minimaliste", "critique", "persona-cit"]
+        
+        input:
+          texte: "Je déménage bientôt dans votre commune, que dois-je faire ?"
+          metadata:
+            source: "portail_citoyen"
+            auteur_type: "citoyen_cit"
+        
+        output_attendu:
+          score:
+            min: 5
+            max: 15
+          decision: "KO"
+          justification_contient:
+            - "informations"
+            - "manquantes"
+        criteres_succes:
+          - "Score < 20"
+          - "Ton bienveillant dans le feedback"
+
+      # Scénario 4.2 - Demande Standard Déménagement
+      - id: "TC-CIT-002"
+        nom: "La Demande Standard"
+        description: "Annonce d'arrivée partielle - Persona CIT"
+        tags: ["typique", "partiel", "persona-cit"]
+        
+        input:
+          texte: |
+            Bonjour, je suis M. Rochat et je vais emménager le mois prochain 
+            dans votre commune. Ma nouvelle adresse sera au chemin des Vignes 15. 
+            Pouvez-vous me dire ce que je dois faire pour le contrôle des habitants ?
+          metadata:
+            source: "email_commune"
+            auteur_type: "citoyen_cit"
+        
+        output_attendu:
+          score:
+            min: 35
+            max: 50
+          decision: "PARTIEL"
+        criteres_succes:
+          - "Score entre 30 et 55"
+          - "Identification des éléments présents"
+
+      # Scénario 4.3 - Demande Exemplaire
+      - id: "TC-CIT-003"
+        nom: "La Demande Exemplaire"
+        description: "Annonce d'arrivée complète - Persona CIT"
+        tags: ["exemplaire", "gold-standard", "persona-cit"]
+        
+        input:
+          texte: |
+            Objet : Annonce d'arrivée dans la commune
+            
+            Madame, Monsieur,
+            
+            Je soussigné Jean ROCHAT, actuellement domicilié au chemin du Lac 8, 
+            1095 Lutry, vous informe de mon changement d'adresse à compter du 15 mars 2026.
+            
+            Ma nouvelle adresse sera : chemin des Vignes 15, 1110 Morges.
+            
+            Composition du foyer : 2 adultes, 1 enfant (scolarisé à l'école primaire).
+            Nationalité : Suisse
+            
+            Coordonnées : 079.123.45.67 / jean.rochat@bluewin.ch
+            
+            Je vous prie de bien vouloir procéder à mon inscription au contrôle des 
+            habitants et me communiquer les démarches complémentaires à effectuer.
+            
+            Avec mes meilleures salutations,
+            Jean ROCHAT
+          metadata:
+            source: "portail_citoyen"
+            auteur_type: "citoyen_cit"
+        
+        output_attendu:
+          score:
+            min: 85
+            max: 100
+          decision: "OK"
+        criteres_succes:
+          - "Score > 85"
+          - "Reconnaissance de la complétude"
+
+      # Scénario 4.4 - Signalement Voirie
+      - id: "TC-CIT-004"
+        nom: "Le Signalement Voirie"
+        description: "Signalement d'un problème dans l'espace public - Persona CIT"
+        tags: ["signalement", "partiel", "persona-cit"]
+        
+        input:
+          texte: |
+            Il y a un gros nid-de-poule sur la route près de chez moi, c'est dangereux. 
+            Quelqu'un va finir par se faire mal à vélo. Merci d'intervenir rapidement.
+          metadata:
+            source: "app_signalement"
+            auteur_type: "citoyen_cit"
+        
+        output_attendu:
+          score:
+            min: 25
+            max: 40
+          decision: "KO"
+          justification_contient:
+            - "localisation"
+            - "préciser"
+        criteres_succes:
+          - "Score modéré (problème identifié mais mal localisé)"
+          - "Demande de localisation précise"
+
+      # Scénario 4.5 - Demande Urbanisme
+      - id: "TC-CIT-005"
+        nom: "La Demande Urbanisme"
+        description: "Question sur les règles d'urbanisme - Persona CIT"
+        tags: ["urbanisme", "information", "persona-cit"]
+        
+        input:
+          texte: |
+            Bonjour, j'habite au chemin du Moulin 23 à Ecublens (1024). 
+            Je souhaite construire un couvert de jardin d'environ 15m². 
+            Ai-je besoin d'une autorisation ? Si oui, laquelle ?
+            Merci de votre retour.
+            Meilleures salutations, Mme Baud (079.876.54.32)
+          metadata:
+            source: "email_commune"
+            auteur_type: "citoyen_cit"
+        
+        output_attendu:
+          score:
+            min: 65
+            max: 80
+          decision: "OK"
+        criteres_succes:
+          - "Score OK (informations suffisantes)"
+          - "Identification des infos complémentaires utiles"
+
+      # =========================================================================
+      # NOUVEAUX SCÉNARIOS VD/FR : CONTRÔLE DES HABITANTS
+      # =========================================================================
+      
+      # Scénario 4.6 - Arrivée Minimaliste (VD)
+      - id: "TC-CIT-006"
+        nom: "L'Arrivée Minimaliste"
+        description: "Annonce d'arrivée très lacunaire - Contexte vaudois"
+        tags: ["controle-habitants", "minimaliste", "persona-cit", "vd"]
+        
+        input:
+          texte: |
+            Bonjour, je viens d'arriver dans votre commune avec ma famille. 
+            Où dois-je m'annoncer ?
+          metadata:
+            source: "portail_citoyen"
+            auteur_type: "nouvel_habitant"
+        
+        output_attendu:
+          score:
+            min: 8
+            max: 18
+          decision: "KO"
+          justification_contient:
+            - "identité"
+            - "adresse"
+            - "composition"
+          observations:
+            - "Délai légal de 14 jours pour s'annoncer en Suisse"
+        criteres_succes:
+          - "Score < 20"
+          - "Rappel bienveillant des informations nécessaires"
+          - "Mention du délai légal d'annonce"
+
+      # Scénario 4.7 - Mutation Intra-Communale (VD)
+      - id: "TC-CIT-007"
+        nom: "La Mutation Intra-Communale"
+        description: "Changement d'adresse au sein de la même commune - Partiel"
+        tags: ["controle-habitants", "mutation", "partiel", "persona-cit", "vd"]
+        
+        input:
+          texte: |
+            Bonjour,
+            
+            Je suis Mme Pittet, actuellement domiciliée au chemin des Alpes 12.
+            Je déménage le mois prochain au chemin du Verger 8, toujours 
+            dans votre commune de Prilly.
+            
+            Merci de mettre à jour mon dossier.
+            
+            Meilleures salutations
+          metadata:
+            source: "email_commune"
+            auteur_type: "habitant_existant"
+        
+        output_attendu:
+          score:
+            min: 45
+            max: 60
+          decision: "PARTIEL"
+          justification_contient:
+            - "date"
+            - "coordonnées"
+          observations:
+            - "Mutation à traiter, informations de base présentes"
+        criteres_succes:
+          - "Score PARTIEL"
+          - "Identification des compléments nécessaires (date exacte, téléphone)"
+
+      # Scénario 4.8 - Attestation Domicile Complète (FR)
+      - id: "TC-CIT-008"
+        nom: "L'Attestation de Domicile Complète"
+        description: "Demande d'attestation bien formulée - Contexte fribourgeois"
+        tags: ["controle-habitants", "attestation", "gold-standard", "persona-cit", "fr"]
+        
+        input:
+          texte: |
+            Objet : Demande d'attestation de domicile
+            
+            Madame, Monsieur,
+            
+            Je soussignée Marie AEBY, née le 15.03.1985, domiciliée au 
+            route de la Glâne 42, 1700 Fribourg, sollicite une attestation 
+            de domicile pour les motifs suivants :
+            
+            - Renouvellement de mon permis de conduire auprès de l'OCN
+            - Justificatif pour mon employeur (nouvel emploi)
+            
+            Je suis domiciliée dans votre commune depuis le 01.09.2020.
+            Numéro AVS : 756.1234.5678.90
+            
+            Merci de m'envoyer ce document à l'adresse ci-dessus ou par email 
+            à marie.aeby@gmail.com.
+            
+            Je reste à disposition pour tout complément.
+            
+            Avec mes meilleures salutations,
+            Marie AEBY
+            Tél : 079.234.56.78
+          metadata:
+            source: "guichet_unique"
+            auteur_type: "citoyen_cit"
+        
+        output_attendu:
+          score:
+            min: 88
+            max: 98
+          decision: "OK"
+        criteres_succes:
+          - "Score > 85"
+          - "Reconnaissance de la complétude exemplaire"
+          - "Tous les éléments présents pour traitement immédiat"
+
+      # =========================================================================
+      # NOUVEAUX SCÉNARIOS VD/FR : NATURALISATIONS
+      # =========================================================================
+      
+      # Scénario 4.9 - Naturalisation Vague
+      - id: "TC-CIT-009"
+        nom: "La Naturalisation Vague"
+        description: "Première prise de contact floue sur la naturalisation"
+        tags: ["naturalisation", "minimaliste", "persona-cit", "vd"]
+        
+        input:
+          texte: |
+            Bonjour, ça fait longtemps que j'habite en Suisse et je voudrais 
+            devenir Suisse. Comment je fais ? C'est cher ?
+          metadata:
+            source: "portail_citoyen"
+            auteur_type: "resident_etranger"
+        
+        output_attendu:
+          score:
+            min: 5
+            max: 15
+          decision: "KO"
+          justification_contient:
+            - "identité"
+            - "durée"
+            - "permis"
+          observations:
+            - "Demande légitime mais très incomplète"
+            - "Orienter vers les conditions de base (années de résidence, permis C)"
+        criteres_succes:
+          - "Score très bas"
+          - "Feedback bienveillant et informatif"
+          - "Pas de ton décourageant malgré le manque d'infos"
+
+      # Scénario 4.10 - Naturalisation Partielle (VD)
+      - id: "TC-CIT-010"
+        nom: "La Naturalisation en Cours"
+        description: "Demande de naturalisation avec éléments partiels - Vaud"
+        tags: ["naturalisation", "partiel", "persona-cit", "vd"]
+        
+        input:
+          texte: |
+            Bonjour,
+            
+            Je m'appelle Marco SILVA, je suis portugais et j'habite à Lausanne 
+            depuis 2012. J'ai un permis C depuis 2018.
+            
+            Je souhaite déposer une demande de naturalisation ordinaire.
+            J'ai fait le test de français (niveau B1 obtenu) et je travaille 
+            comme électricien chez Romande Energie.
+            
+            Pouvez-vous m'envoyer le dossier à remplir ?
+            
+            Merci
+            Marco SILVA
+            Avenue de Tivoli 15, 1007 Lausanne
+          metadata:
+            source: "email_commune"
+            auteur_type: "candidat_naturalisation"
+        
+        output_attendu:
+          score:
+            min: 50
+            max: 65
+          decision: "PARTIEL"
+          justification_contient:
+            - "date de naissance"
+            - "situation familiale"
+            - "casier judiciaire"
+          observations:
+            - "Profil éligible apparent (>10 ans, permis C, emploi stable)"
+            - "Compléments à demander pour constituer le dossier"
+        criteres_succes:
+          - "Score PARTIEL"
+          - "Identification des pièces manquantes"
+          - "Reconnaissance des points positifs du profil"
+
+      # Scénario 4.11 - Naturalisation Complète (FR)
+      - id: "TC-CIT-011"
+        nom: "La Naturalisation Exemplaire"
+        description: "Dossier de naturalisation bien préparé - Fribourg"
+        tags: ["naturalisation", "gold-standard", "persona-cit", "fr"]
+        
+        input:
+          texte: |
+            Objet : Demande de naturalisation ordinaire - Dossier complet
+            
+            Madame, Monsieur le Syndic,
+            
+            Je soussigné Antonio FERREIRA, né le 22.07.1978 à Porto (Portugal), 
+            domicilié au chemin des Primevères 8, 1630 Bulle, sollicite par la 
+            présente ma naturalisation ordinaire dans votre commune.
+            
+            SITUATION PERSONNELLE :
+            - Nationalité actuelle : Portugaise
+            - État civil : Marié, 2 enfants (12 et 9 ans, nés en Suisse)
+            - Permis : C depuis 2014
+            - Arrivée en Suisse : 2004 (22 ans de résidence)
+            - Domicile à Bulle : depuis 2010 (16 ans)
+            
+            INTÉGRATION :
+            - Emploi : Chef d'équipe chez Liebherr Machines Bulle SA depuis 2015
+            - Français : Langue maternelle de travail, attestation B2 jointe
+            - Associations : Membre du FC Bulle (entraîneur juniors E)
+            - Enfants scolarisés à l'école primaire de la Condémine
+            
+            PIÈCES JOINTES :
+            - Copie passeport portugais
+            - Attestation de domicile
+            - Extrait casier judiciaire suisse (vierge)
+            - Attestation de non-poursuite
+            - Certificat de français B2
+            - Attestations employeur et associatives
+            
+            Je reste à disposition pour l'entretien communal et tout complément.
+            
+            Avec mes respectueuses salutations,
+            
+            Antonio FERREIRA
+            Tél : 079.345.67.89
+            Email : a.ferreira@bluewin.ch
+          metadata:
+            source: "guichet_unique"
+            auteur_type: "candidat_naturalisation"
+        
+        output_attendu:
+          score:
+            min: 92
+            max: 100
+          decision: "OK"
+          observations:
+            - "Dossier exemplaire, profil d'intégration excellent"
+            - "Toutes les pièces mentionnées"
+        criteres_succes:
+          - "Score > 90"
+          - "Reconnaissance du dossier complet et bien structuré"
+
+      # =========================================================================
+      # NOUVEAUX SCÉNARIOS VD/FR : AIDES ET SUBVENTIONS
+      # =========================================================================
+      
+      # Scénario 4.12 - Subvention Floue
+      - id: "TC-CIT-012"
+        nom: "La Subvention Floue"
+        description: "Demande d'aide imprécise - Association locale"
+        tags: ["subvention", "minimaliste", "persona-cit", "vd"]
+        
+        input:
+          texte: |
+            Bonjour,
+            
+            Notre association organise des activités pour les jeunes du quartier.
+            Est-ce qu'on peut avoir une aide de la commune ?
+            
+            Merci d'avance
+          metadata:
+            source: "email_commune"
+            auteur_type: "association_locale"
+        
+        output_attendu:
+          score:
+            min: 8
+            max: 18
+          decision: "KO"
+          justification_contient:
+            - "nom association"
+            - "montant"
+            - "activités"
+            - "budget"
+          observations:
+            - "Demande trop vague pour être instruite"
+        criteres_succes:
+          - "Score < 20"
+          - "Liste claire des informations à fournir"
+
+      # Scénario 4.13 - Subvention Association Partielle (VD)
+      - id: "TC-CIT-013"
+        nom: "La Subvention Associative"
+        description: "Demande de soutien pour événement local - Partiel"
+        tags: ["subvention", "association", "partiel", "persona-cit", "vd"]
+        
+        input:
+          texte: |
+            Commune de Renens
+            Service de la culture
+            
+            Objet : Demande de subvention - Fête de quartier des Plaines-du-Loup
+            
+            Madame, Monsieur,
+            
+            L'Association des Habitants des Plaines-du-Loup organise sa fête 
+            de quartier annuelle le samedi 14 juin 2026.
+            
+            Programme prévu : stands associatifs, concerts, activités enfants, 
+            repas de quartier.
+            
+            Nous sollicitons un soutien financier de la commune pour couvrir 
+            une partie des frais (scène, sono, assurances).
+            
+            Merci de votre réponse.
+            
+            Le comité
+            Association des Habitants des Plaines-du-Loup
+          metadata:
+            source: "courrier_postal"
+            auteur_type: "association_locale"
+        
+        output_attendu:
+          score:
+            min: 40
+            max: 55
+          decision: "PARTIEL"
+          justification_contient:
+            - "montant demandé"
+            - "budget prévisionnel"
+            - "statuts"
+          observations:
+            - "Événement identifié, association connue localement"
+            - "Manque le chiffrage et les pièces justificatives"
+        criteres_succes:
+          - "Score PARTIEL"
+          - "Identification des compléments budgétaires nécessaires"
+
+      # Scénario 4.14 - Subvention Exemplaire (FR)
+      - id: "TC-CIT-014"
+        nom: "La Subvention Exemplaire"
+        description: "Dossier de demande de subvention complet - Fribourg"
+        tags: ["subvention", "gold-standard", "persona-cit", "fr"]
+        
+        input:
+          texte: |
+            DEMANDE DE SUBVENTION COMMUNALE
+            
+            Commune de Villars-sur-Glâne
+            Service des affaires culturelles et sociales
+            
+            ASSOCIATION REQUÉRANTE :
+            - Nom : Chorale "Les Voix du Lac"
+            - Siège : route de la Glâne 85, 1752 Villars-sur-Glâne
+            - N° IDE : CHE-123.456.789
+            - Président : Jean-Claude MAURON (079.456.78.90)
+            - Membres : 45 choristes, dont 38 domiciliés dans la commune
+            
+            OBJET DE LA DEMANDE :
+            Concert de Noël 2026 à l'église St-Pierre
+            Date : 15 décembre 2026, 17h00
+            Entrée libre, collecte pour les Cartons du Cœur
+            
+            BUDGET PRÉVISIONNEL :
+            - Location orgue et piano : 800 CHF
+            - Partition nouvelles œuvres : 350 CHF
+            - Affiches et programmes : 450 CHF
+            - Apéritif offert : 600 CHF
+            - TOTAL DÉPENSES : 2'200 CHF
+            
+            FINANCEMENT :
+            - Cotisations membres : 500 CHF
+            - Sponsors locaux (Banque Raiffeisen) : 700 CHF
+            - Subvention communale sollicitée : 1'000 CHF
+            
+            PIÈCES JOINTES :
+            - Statuts de l'association
+            - PV dernière AG
+            - Comptes 2025 certifiés
+            - Budget détaillé 2026
+            - Programme du concert
+            
+            Avec nos remerciements anticipés et nos meilleures salutations,
+            
+            Pour le comité,
+            Jean-Claude MAURON, président
+            Email : chorale.voixdulac@gmail.com
+          metadata:
+            source: "formulaire_subvention"
+            auteur_type: "association_locale"
+        
+        output_attendu:
+          score:
+            min: 90
+            max: 100
+          decision: "OK"
+          observations:
+            - "Dossier complet et professionnel"
+            - "Budget équilibré et réaliste"
+            - "Ancrage local démontré"
+        criteres_succes:
+          - "Score > 90"
+          - "Reconnaissance de la qualité du dossier"
+          - "Prêt pour instruction immédiate"
+
+  # ---------------------------------------------------------------------------
+  # CAS 5 : DEMANDES DE DEVIS CONSTRUCTION (BTP)
+  # ---------------------------------------------------------------------------
+  demandes_devis_construction:
+    prompt_ref: "PROMPT-005"
+    
+    scenarios:
+      # Scénario 5.1 - Demande Vague
+      - id: "TC-MOA-001"
+        nom: "La Demande Vague"
+        description: "Demande de devis très imprécise - Persona MOA"
+        tags: ["minimaliste", "critique", "persona-moa"]
+        
+        input:
+          texte: "Bonjour, je voudrais agrandir ma maison. Combien ça coûte ?"
+          metadata:
+            source: "formulaire_web"
+            auteur_type: "particulier_moa"
+        
+        output_attendu:
+          score:
+            min: 5
+            max: 15
+          decision: "KO"
+          justification_contient:
+            - "impossible"
+            - "chiffrer"
+        criteres_succes:
+          - "Score < 20"
+          - "Explication claire des infos nécessaires"
+
+      # Scénario 5.2 - Demande Partielle Extension
+      - id: "TC-MOA-002"
+        nom: "La Demande Partielle"
+        description: "Projet d'extension avec infos partielles - Persona MOA"
+        tags: ["typique", "partiel", "persona-moa"]
+        
+        input:
+          texte: |
+            Bonjour, nous souhaitons faire construire une extension de notre maison 
+            à Pully (VD) pour créer une chambre supplémentaire avec salle d'eau. 
+            On pense à environ 25m². Pourriez-vous nous faire un devis ?
+          metadata:
+            source: "email"
+            auteur_type: "particulier_moa"
+        
+        output_attendu:
+          score:
+            min: 40
+            max: 55
+          decision: "PARTIEL"
+        criteres_succes:
+          - "Score entre 35 et 60"
+          - "Reconnaissance du projet identifiable"
+
+      # Scénario 5.3 - Demande Complète
+      - id: "TC-MOA-003"
+        nom: "La Demande Complète"
+        description: "Demande de devis professionnelle - Persona MOA"
+        tags: ["exemplaire", "gold-standard", "persona-moa"]
+        
+        input:
+          texte: |
+            Objet : Demande de devis - Extension plain-pied
+            
+            Bonjour,
+            
+            Nous souhaitons réaliser une extension de plain-pied à notre maison 
+            située au chemin des Vignes 45, 1009 Pully.
+            
+            Projet : Extension de 30m² comprenant 1 chambre (15m²) + 1 salle d'eau (8m²) 
+            + dégagement (7m²). Toiture plate végétalisée souhaitée, standard Minergie si possible.
+            
+            Terrain : Parcelle de 800m², accès facile côté jardin, pas de mitoyenneté 
+            sur la zone d'extension.
+            
+            Budget envisagé : 80'000 à 110'000 CHF TTC
+            Délai souhaité : Travaux été 2026 (permis à déposer)
+            
+            Nous avons déjà consulté le règlement communal, la zone permet l'extension.
+            La mise à l'enquête est prévue pour mars.
+            
+            Merci de nous contacter pour organiser une visite.
+            
+            M. et Mme REYMOND
+            079.112.23.34 / famille.reymond@bluewin.ch
+            Disponibles les samedis matin
+          metadata:
+            source: "formulaire_devis"
+            auteur_type: "particulier_moa"
+        
+        output_attendu:
+          score:
+            min: 90
+            max: 100
+          decision: "OK"
+        criteres_succes:
+          - "Score > 90"
+          - "Reconnaissance de la qualité professionnelle"
+
+      # Scénario 5.4 - Demande Rénovation Toiture
+      - id: "TC-MOA-004"
+        nom: "La Demande Rénovation"
+        description: "Demande pour rénovation toiture - Persona MOA"
+        tags: ["renovation", "partiel", "persona-moa"]
+        
+        input:
+          texte: |
+            Bonjour, notre toiture a plus de 30 ans et commence à fuir. 
+            On aimerait un devis pour la refaire, si possible avec isolation 
+            pour améliorer notre indice énergétique. C'est une maison à Lausanne, 
+            surface au sol environ 100m². On peut être flexibles sur les dates.
+          metadata:
+            source: "telephone_retranscrit"
+            auteur_type: "particulier_moa"
+        
+        output_attendu:
+          score:
+            min: 30
+            max: 45
+          decision: "PARTIEL"
+        criteres_succes:
+          - "Score PARTIEL"
+
+      # Scénario 5.5 - Demande Multi-Lots
+      - id: "TC-MOA-005"
+        nom: "La Demande Multi-Lots"
+        description: "Projet complexe multi-corps de métier - Persona MOA"
+        tags: ["complexe", "multi-lots", "persona-moa"]
+        
+        input:
+          texte: |
+            Nous venons d'acheter une maison à rénover entièrement à Nyon. 
+            Il faut tout refaire : toiture, électricité, sanitaire, isolation, 
+            cuisine, salle de bain... On a un budget d'environ 200'000 CHF et on 
+            voudrait emménager dans 1 an. Pouvez-vous gérer tout ça comme 
+            entreprise générale ?
+          metadata:
+            source: "email"
+            auteur_type: "particulier_moa"
+        
+        output_attendu:
+          score:
+            min: 35
+            max: 50
+          decision: "PARTIEL"
+          justification_contient:
+            - "complexe"
+            - "détailler"
+          observations:
+            - "Projet ambitieux nécessitant une visite technique"
+            - "Recommander un phasage des travaux"
+        
+        criteres_succes:
+          - "Score PARTIEL malgré infos globales présentes"
+          - "Recommandation de visite technique"
+
+  # ---------------------------------------------------------------------------
+  # CAS 6 : RAPPORTS DE CHANTIER (BTP)
+  # ---------------------------------------------------------------------------
+  rapports_chantier:
+    prompt_ref: "PROMPT-006"
+    
+    scenarios:
+      # Scénario 6.1 - Rapport Fantôme
+      - id: "TC-OPS-001"
+        nom: "Le Rapport Fantôme"
+        description: "Rapport de chantier quasi-vide - Persona OPS"
+        tags: ["minimaliste", "critique", "persona-ops"]
+        
+        input:
+          texte: "Chantier OK. RAS."
+          metadata:
+            source: "app_mobile_chantier"
+            auteur_type: "chef_chantier_ops"
+        
+        output_attendu:
+          score:
+            min: 3
+            max: 10
+          decision: "KO"
+          justification_contient:
+            - "inexploitable"
+            - "traçabilité"
+        criteres_succes:
+          - "Score < 15"
+          - "Alerte sur absence de traçabilité"
+
+      # Scénario 6.2 - Rapport Standard
+      - id: "TC-OPS-002"
+        nom: "Le Rapport Standard"
+        description: "Rapport journalier basique - Persona OPS"
+        tags: ["typique", "partiel", "persona-ops"]
+        
+        input:
+          texte: |
+            Chantier Reymond - 31/01/2026
+            Coulage dalle RDC terminé ce jour.
+            Équipe : 4 personnes + pompe béton.
+            Météo OK, pas de souci.
+            Demain : coffrage escalier.
+          metadata:
+            source: "app_mobile_chantier"
+            auteur_type: "chef_chantier_ops"
+        
+        output_attendu:
+          score:
+            min: 45
+            max: 60
+          decision: "PARTIEL"
+        criteres_succes:
+          - "Score PARTIEL"
+          - "Identification des améliorations possibles"
+
+      # Scénario 6.3 - Rapport Exemplaire
+      - id: "TC-OPS-003"
+        nom: "Le Rapport Exemplaire"
+        description: "Rapport de chantier complet et professionnel - Persona OPS"
+        tags: ["exemplaire", "gold-standard", "persona-ops"]
+        
+        input:
+          texte: |
+            RAPPORT JOURNALIER - Chantier REYMOND (Réf: CH-2026-042)
+            Adresse : chemin des Vignes 45, 1009 Pully
+            Date : 31/01/2026 | Semaine 5 | Jour 12/45
+            
+            MÉTÉO : Couvert, 4°C, pas de pluie - Conditions OK pour bétonnage
+            
+            EFFECTIFS PRÉSENTS :
+            - Équipe interne : 4 (1 chef, 2 maçons, 1 manœuvre)
+            - Sous-traitant électricien : 2 personnes (passage gaines)
+            
+            TRAVAUX RÉALISÉS :
+            - Coulage dalle RDC extension (18m³ béton C25/30, norme SIA 262)
+            - Vibration et règlage - Cure mise en place
+            - Passage gaines électriques avant prise
+            
+            MATÉRIAUX :
+            - Béton livré : 18m³ (BL n°4521 - Holcim Suisse)
+            - Treillis soudé : 25m² (stock chantier)
+            
+            AVANCEMENT : 35% global (conforme planning)
+            
+            POINTS D'ATTENTION :
+            - Délai séchage : 21 jours mini avant charge
+            - Prévoir bâchage si gel annoncé (prévisions -2°C vendredi)
+            
+            PRÉVISIONS J+1 :
+            - Repos dalle
+            - Préparation coffrage escalier
+            - Livraison agglos prévue 8h
+            
+            Photos : 4 photos jointes (avant/pendant/après coulage + cure)
+            
+            Validé : P. Germanier, Chef de chantier
+          metadata:
+            source: "app_mobile_chantier"
+            auteur_type: "chef_chantier_ops"
+        
+        output_attendu:
+          score:
+            min: 92
+            max: 100
+          decision: "OK"
+        criteres_succes:
+          - "Score > 90"
+          - "Reconnaissance de la qualité professionnelle"
+
+      # Scénario 6.4 - Rapport Incident
+      - id: "TC-OPS-004"
+        nom: "Le Rapport Incident"
+        description: "Rapport mentionnant un problème - Persona OPS"
+        tags: ["incident", "signal", "persona-ops"]
+        
+        input:
+          texte: |
+            Chantier Chapuis - 31/01
+            Problème ce matin : fissure découverte dans mur existant lors 
+            de l'ouverture. On a arrêté et mis des étais par sécurité.
+            J'attends vos instructions.
+          metadata:
+            source: "sms"
+            auteur_type: "chef_chantier_ops"
+        
+        output_attendu:
+          score:
+            min: 30
+            max: 45
+          decision: "KO"
+          justification_contient:
+            - "incident"
+            - "documenter"
+          alertes:
+            - "Incident structurel nécessitant documentation complète"
+        criteres_succes:
+          - "Détection du signal d'alerte"
+          - "Demande de documentation renforcée"
+
+      # Scénario 6.5 - Rapport Intempéries
+      - id: "TC-OPS-005"
+        nom: "Le Rapport Intempéries"
+        description: "Rapport journée non travaillée - Persona OPS"
+        tags: ["meteo", "arret", "persona-ops"]
+        
+        input:
+          texte: |
+            Chantier Reymond - 31/01/2026
+            Pas de travail aujourd'hui : neige et gel (-5°C).
+            Équipe rentrée au dépôt à Renens.
+            On reprend demain si météo OK.
+          metadata:
+            source: "app_mobile_chantier"
+            auteur_type: "chef_chantier_ops"
+        
+        output_attendu:
+          score:
+            min: 50
+            max: 65
+          decision: "PARTIEL"
+        criteres_succes:
+          - "Score acceptable pour journée d'arrêt"
+          - "Suggestions d'amélioration pertinentes"
+
+# =============================================================================
+# SECTION 5 : PROTOCOLE DE VALIDATION
+# =============================================================================
+
+protocole_validation:
+  # ---------------------------------------------------------------------------
+  # Phase 1 : Tests Automatisés
+  # ---------------------------------------------------------------------------
+  phase_1_automatique:
+    nom: "Validation Automatique - Cohérence Interne"
+    duree_estimee: "1 jour"
+    prerequis:
+      - "Moteur CoVeX fonctionnel"
+      - "API opérationnelle"
+      - "Prompts métier configurés"
+    
+    tests:
+      monotonie:
+        description: "Vérifier Score(minimaliste) < Score(partiel) < Score(complet)"
+        triplets:
+          # Secteur Entreprise
+          - ["TC-IT-001", "TC-IT-002", "TC-IT-003"]
+          - ["TC-ACH-001", "TC-ACH-002", "TC-ACH-003"]
+          - ["TC-CR-001", "TC-CR-002", "TC-CR-003"]
+          # Secteur Communes - Original
+          - ["TC-CIT-001", "TC-CIT-002", "TC-CIT-003"]
+          # Secteur Communes - Contrôle habitants VD/FR
+          - ["TC-CIT-006", "TC-CIT-007", "TC-CIT-008"]
+          # Secteur Communes - Naturalisations VD/FR
+          - ["TC-CIT-009", "TC-CIT-010", "TC-CIT-011"]
+          # Secteur Communes - Subventions VD/FR
+          - ["TC-CIT-012", "TC-CIT-013", "TC-CIT-014"]
+          # Secteur Construction
+          - ["TC-MOA-001", "TC-MOA-002", "TC-MOA-003"]
+          - ["TC-OPS-001", "TC-OPS-002", "TC-OPS-003"]
+        critere: "PASS si ordre respecté pour 100% des triplets (10 triplets)"
+        
+      resistance_bruit:
+        description: "Vérifier Score(verbeux) < Score(partiel_pertinent)"
+        paires:
+          # Secteur Entreprise
+          - ["TC-IT-004", "TC-IT-002"]
+          - ["TC-ACH-004", "TC-ACH-002"]
+          - ["TC-CR-004", "TC-CR-002"]
+          # Secteur Communes (signalement vague vs demande standard)
+          - ["TC-CIT-004", "TC-CIT-002"]
+          # Secteur Construction (demande multi-lots vs partielle)
+          - ["TC-MOA-005", "TC-MOA-002"]
+          # Secteur Construction (rapport incident vs standard)
+          - ["TC-OPS-004", "TC-OPS-002"]
+        critere: "PASS si inégalité respectée pour 100% des paires (6 paires)"
+        
+      coherence_decision:
+        description: "Vérifier cohérence score/décision selon seuils"
+        tous_scenarios: true
+        critere: "PASS si 100% conforme aux seuils configurés"
+        
+      reproductibilite:
+        description: "Exécuter 10 fois chaque scénario"
+        iterations: 10
+        critere: "PASS si écart-type < 5 points pour tous les scénarios"
+
+  # ---------------------------------------------------------------------------
+  # Phase 2 : Validation Expert Métier
+  # ---------------------------------------------------------------------------
+  phase_2_expert:
+    nom: "Validation Humaine - Concordance Expert"
+    duree_estimee: "1 semaine"
+    
+    panel_experts:
+      composition:
+        # Secteur Entreprise
+        - role: "Responsable Support IT"
+          scenarios: ["TC-IT-*"]
+          nombre: 2
+          contexte: "PME romande, fiduciaire ou société de services"
+        - role: "Responsable Achats"
+          scenarios: ["TC-ACH-*"]
+          nombre: 2
+          contexte: "PME romande"
+        - role: "Chef d'équipe Maintenance"
+          scenarios: ["TC-CR-*"]
+          nombre: 2
+          contexte: "Entreprise de services techniques romande"
+        # Secteur Communes
+        - role: "Collaborateur administratif / Contrôle des habitants"
+          scenarios: ["TC-CIT-*"]
+          nombre: 2
+          contexte: "Commune vaudoise, genevoise ou valaisanne"
+        # Secteur Construction
+        - role: "Chargé d'affaires BTP / Commercial construction"
+          scenarios: ["TC-MOA-*"]
+          nombre: 2
+          contexte: "Entreprise générale ou architecte romand"
+        - role: "Conducteur de travaux / Chef de chantier"
+          scenarios: ["TC-OPS-*"]
+          nombre: 2
+          contexte: "Entreprise de construction romande"
+      
+    protocole:
+      etape_1:
+        action: "Présenter les textes INPUT sans les scores CoVeX"
+        livrables: "Grille d'évaluation vierge"
+      etape_2:
+        action: "Expert note chaque texte de 0 à 100"
+        livrables: "Scores experts"
+      etape_3:
+        action: "Expert indique décision KO/PARTIEL/OK"
+        livrables: "Décisions experts"
+      etape_4:
+        action: "Comparer avec outputs CoVeX"
+        livrables: "Rapport de concordance"
+    
+    criteres_validation:
+      correlation_score:
+        seuil: 0.85
+        methode: "Coefficient de Pearson"
+      accord_decision:
+        seuil: 90
+        unite: "pourcentage"
+
+  # ---------------------------------------------------------------------------
+  # Phase 3 : Test Terrain
+  # ---------------------------------------------------------------------------
+  phase_3_terrain:
+    nom: "Validation Utilisateur - Impact Réel"
+    duree_estimee: "4 semaines (2 contrôle + 2 test)"
+    
+    setup:
+      periode_controle:
+        duree: "2 semaines"
+        description: "Collecte baseline sans CoVeX"
+        mesures:
+          - "Nombre moyen d'allers-retours par ticket/demande/CR"
+          - "Temps moyen de traitement"
+          - "Taux de rejet/renvoi"
+      
+      periode_test:
+        duree: "2 semaines"
+        description: "Activation CoVeX en mode feedback"
+        mesures:
+          - "Score moyen initial"
+          - "Score moyen après correction"
+          - "Nombre d'allers-retours"
+          - "Temps de traitement"
+          - "Satisfaction utilisateur"
+    
+    volume_cible:
+      # Secteur Entreprise
+      tickets_it: "50-100 tickets"
+      demandes_achat: "30-50 demandes"
+      cr_intervention: "40-60 comptes-rendus"
+      # Secteur Communes
+      demandes_citoyennes: "30-50 demandes"
+      # Secteur Construction
+      demandes_devis: "20-40 demandes"
+      rapports_chantier: "30-50 rapports"
+    
+    criteres_succes:
+      reduction_iterations:
+        seuil: 30
+        cible: 50
+        unite: "pourcentage de réduction"
+      progression_score:
+        seuil: 15
+        cible: 25
+        unite: "points"
+      satisfaction:
+        seuil: 3.5
+        cible: 4.0
+        unite: "score CSAT /5"
+
+# =============================================================================
+# SECTION 6 : TABLEAU DE BORD DE SUIVI
+# =============================================================================
+
+tableau_bord:
+  kpi_summary:
+    - kpi_id: "KPI-001"
+      nom: "Qualité d'Évaluation"
+      indicateur_principal: "correlation_score"
+      seuil_alerte: 0.80
+      seuil_cible: 0.90
+      statut: "À MESURER"
+      
+    - kpi_id: "KPI-002"
+      nom: "Cohérence Interne"
+      indicateur_principal: "monotonie_score"
+      seuil_alerte: "FAIL"
+      seuil_cible: "PASS"
+      statut: "À MESURER"
+      
+    - kpi_id: "KPI-003"
+      nom: "Performance Technique"
+      indicateur_principal: "latence_inference"
+      seuil_alerte: 10
+      seuil_cible: 5
+      unite: "secondes"
+      statut: "À MESURER"
+      
+    - kpi_id: "KPI-004"
+      nom: "Valeur Métier"
+      indicateur_principal: "reduction_iterations"
+      seuil_alerte: 30
+      seuil_cible: 50
+      unite: "pourcentage"
+      statut: "À MESURER"
+      
+    - kpi_id: "KPI-005"
+      nom: "Qualité Feedback"
+      indicateur_principal: "pertinence_justification"
+      seuil_alerte: 3.5
+      seuil_cible: 4.0
+      unite: "score /5"
+      statut: "À MESURER"
+
+  checklist_mvp:
+    - critere: "6 cas d'usage fonctionnels sur 3 secteurs"
+      statut: "À VALIDER"
+      scenarios_requis: 
+        secteur_entreprise: ["TC-IT-*", "TC-ACH-*", "TC-CR-*"]
+        secteur_communes: ["TC-CIT-*"]
+        secteur_construction: ["TC-MOA-*", "TC-OPS-*"]
+      
+    - critere: "Validation métier positive"
+      statut: "À VALIDER"
+      condition: "Corrélation expert > 0.85 sur les 3 secteurs"
+      
+    - critere: "Stabilité locale"
+      statut: "À VALIDER"
+      condition: "0 requête cloud, latence < 10s"
+      
+    - critere: "Résultats actionnables"
+      statut: "À VALIDER"
+      condition: "Score pertinence > 3.5/5"
+      
+    - critere: "Couverture personas"
+      statut: "À VALIDER"
+      condition: "7 personas couverts (GO, VOX, ZAP, NEW, CIT, MOA, OPS)"

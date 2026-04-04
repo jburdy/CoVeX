@@ -1,0 +1,530 @@
+profiles:
+  tickets_support_it:
+    name: "Ticket support IT"
+    description: "Analyse des tickets incidents et demandes IT"
+    inference_engine_key: "remote_groq_llama31_8b_instant"
+    le_few_shot:
+      - text: "Le VPN Cisco se deconnecte tout seul apres 5 minutes d'utilisation sur mon mac."
+        extractions:
+          - criterion_id: "symptome"
+            extraction_text: "se deconnecte tout seul apres 5 minutes d'utilisation"
+          - criterion_id: "contexte"
+            extraction_text: "sur mon mac"
+      - text: "Lenovo ThinkPad T14, Windows 10. L'ecran externe clignote sans arret des que je le branche en HDMI. Je dois presenter un webinaire a 14h, c'est super urgent. J'ai essaye un autre cable et un autre port, meme resultat."
+        extractions:
+          - criterion_id: "symptome"
+            extraction_text: "L'ecran externe clignote sans arret des que je le branche en HDMI"
+          - criterion_id: "contexte"
+            extraction_text: "Lenovo ThinkPad T14, Windows 10"
+          - criterion_id: "impact_urgence"
+            extraction_text: "Je dois presenter un webinaire a 14h, c'est super urgent"
+          - criterion_id: "actions_tentees"
+            extraction_text: "J'ai essaye un autre cable et un autre port"
+      - text: "J'ai un souci avec mon navigateur, il est super lent. Et puis le son coupe quand je regarde des videos."
+        extractions:
+          - criterion_id: "symptome"
+            extraction_text: "il est super lent"
+    coverage_item:
+      - id: "symptome"
+        expected_info: "Dysfonctionnement observable et exploitable; une formule vague ne suffit pas."
+        weight: 0.25
+      - id: "contexte"
+        expected_info: "Au moins un element technique exploitable: poste, OS, application, version ou materiel."
+        weight: 0.2
+      - id: "impact_urgence"
+        expected_info: "Impact concret, blocage ou urgence exprimee explicitement."
+        weight: 0.25
+      - id: "actions_tentees"
+        expected_info: "Actions deja tentees exprimees explicitement."
+        weight: 0.2
+
+  demandes_achat:
+    name: "Demande achat"
+    description: "Analyse des demandes achat et approvisionnement"
+    inference_engine_key: "remote_groq_llama31_8b_instant"
+    le_few_shot:
+      - text: "J'aimerais un casque anti-bruit."
+        extractions:
+          - criterion_id: "article"
+            extraction_text: "un casque anti-bruit"
+      - text: "Il nous faudrait trois claviers sans fil pour la nouvelle equipe de vente. On les attend pour la fin du mois maximum."
+        extractions:
+          - criterion_id: "article"
+            extraction_text: "claviers sans fil"
+          - criterion_id: "quantite_explicite"
+            extraction_text: "trois"
+          - criterion_id: "delai_urgence"
+            extraction_text: "pour la fin du mois maximum"
+          - criterion_id: "justification"
+            extraction_text: "pour la nouvelle equipe de vente"
+      - text: "J'ai besoin de ce logiciel pour ce soir imperativement, c'est pour un gros projet."
+        extractions:
+          - criterion_id: "delai_urgence"
+            extraction_text: "pour ce soir imperativement"
+      - text: "Achat de licences : Suite Adobe Creative Cloud, quantite 2, prix unitaire de 85 EUR par mois. Justification : pour les nouveaux webdesigners du service communication. Il nous les faut pour lundi prochain au plus tard afin qu'ils soient operationnels."
+        extractions:
+          - criterion_id: "article"
+            extraction_text: "Suite Adobe Creative Cloud"
+          - criterion_id: "quantite_explicite"
+            extraction_text: "quantite 2"
+          - criterion_id: "justification"
+            extraction_text: "pour les nouveaux webdesigners du service communication"
+          - criterion_id: "ref_financiere"
+            extraction_text: "prix unitaire de 85 EUR par mois"
+          - criterion_id: "delai_urgence"
+            extraction_text: "pour lundi prochain au plus tard"
+    coverage_item:
+      - id: "article"
+        expected_info: "Article, equipement ou service specifique demande avec une precision exploitable. Exclure les termes generiques ('du materiel', 'des pieces')."
+        weight: 0.2
+      - id: "quantite_explicite"
+        expected_info: "Quantite numerique exacte exprimee clairement (ex: '3 ecrans', '50 licences')."
+        weight: 0.3
+      - id: "justification"
+        expected_info: "Motif concret ou cas d'usage metier justifiant l'achat."
+        weight: 0.1
+      - id: "ref_financiere"
+        expected_info: "Montant financier precis ou centre de cout defini (ex: 'prix 50 EUR', 'budget Q3'). Une demande de devis ou 'a definir' n'est pas un budget."
+        weight: 0.3
+      - id: "delai_urgence"
+        expected_info: "Date butoir exacte ou urgence qualifiee ('ce soir', 'fin du mois'). Exclure 'rapidement' ou 'des que possible'."
+        weight: 0.1
+
+  cr_intervention:
+    name: "Compte-rendu intervention"
+    description: "Analyse des comptes-rendus d'intervention terrain. Ignorer les templates ou modeles vides."
+    inference_engine_key: "remote_groq_llama31_8b_instant"
+    le_few_shot:
+      - text: "Tournee effectuee sans probleme."
+        extractions: []
+      - text: "Hopital de Sion, service radiologie. Reparation du scanner 3D. Remplacement de la carte mere defectueuse. Tests materiels faits."
+        extractions:
+          - criterion_id: "site"
+            extraction_text: "Hopital de Sion, service radiologie"
+          - criterion_id: "objet_constat"
+            extraction_text: "Reparation du scanner 3D"
+          - criterion_id: "actions_realisees"
+            extraction_text: "Remplacement de la carte mere defectueuse. Tests materiels faits"
+      - text: "Lieu : Pharmacie Centrale, Geneve. Objet de la visite : Verification annuelle des alarmes incendie. Constat : 2 detecteurs de fumee en defaut au sous-sol. Operations menees : Changement des detecteurs concernes (ref DET-400), reset de la centrale, et test sirene concluant. Bilan : Installation de nouveau aux normes. A prevoir : verifier les batteries de secours d'ici 6 mois."
+        extractions:
+          - criterion_id: "site"
+            extraction_text: "Pharmacie Centrale, Geneve"
+          - criterion_id: "objet_constat"
+            extraction_text: "Objet de la visite : Verification annuelle des alarmes incendie. Constat : 2 detecteurs de fumee en defaut au sous-sol"
+          - criterion_id: "actions_realisees"
+            extraction_text: "Changement des detecteurs concernes (ref DET-400), reset de la centrale, et test sirene concluant"
+          - criterion_id: "tracabilite"
+            extraction_text: "Bilan : Installation de nouveau aux normes. A prevoir : verifier les batteries de secours d'ici 6 mois"
+      - text: "Intervention aupres de l'ecole primaire de Rolle. Les professeurs attendent qu'on leur change les tableaux blancs."
+        extractions:
+          - criterion_id: "site"
+            extraction_text: "ecole primaire de Rolle"
+      - text: "Ceci est un document generique pour les visites de depannage. Veuillez y indiquer les pieces changees et le temps passe."
+        extractions: []
+      - text: "Le plombier est venu reparer la fuite ce matin, c'est tout bon, on n'a plus d'eau sur le sol."
+        extractions:
+          - criterion_id: "tracabilite"
+            extraction_text: "c'est tout bon, on n'a plus d'eau sur le sol"
+    coverage_item:
+      - id: "site"
+        expected_info: "Client, site ou equipement identifie de facon exploitable. (Ne pas extraire depuis les instructions d'un modele vide)."
+        weight: 0.1
+      - id: "objet_constat"
+        expected_info: "Objet precis de l'intervention ou constat technique initial reel."
+        weight: 0.2
+      - id: "actions_realisees"
+        expected_info: "Actions techniques de reparation ou de controle effectuees de maniere explicite par l'intervenant. Exclure les simples mentions de passage."
+        weight: 0.35
+      - id: "tracabilite"
+        expected_info: "Resultat technique de l'intervention ou etat de fonctionnement final valide. Une demande de reprise de dossier ou de devis n'est pas un resultat d'intervention."
+        weight: 0.35
+
+  demandes_citoyennes:
+    name: "Demande citoyenne"
+    description: "Analyse des demandes et signalements citoyens"
+    inference_engine_key: "remote_openrouter_mistral_small_32_24b"
+    le_few_shot:
+      - text: "Je voudrais inscrire mes enfants a l'ecole."
+        extractions:
+          - criterion_id: "demarche_signalement"
+            extraction_text: "inscrire mes enfants a l'ecole"
+      - text: "Bonjour, M. Dupont ici. J'habite au 12 rue des Chenes. Je souhaite commander une nouvelle poubelle verte pour les dechets de jardin. Merci de m'indiquer la procedure."
+        extractions:
+          - criterion_id: "demarche_signalement"
+            extraction_text: "commander une nouvelle poubelle verte"
+          - criterion_id: "demandeur"
+            extraction_text: "M. Dupont"
+          - criterion_id: "localisation"
+            extraction_text: "12 rue des Chenes"
+          - criterion_id: "action_attendue"
+            extraction_text: "Merci de m'indiquer la procedure"
+      - text: "A l'attention du controle des habitants. Je suis Madame Vallee, residante depuis 2018 au 45 Avenue de la Gare, 1260 Nyon. Je demande le renouvellement de mon permis de stationnement macaron B, expire fin aout. Mon numero de plaque est VD 123456. Vous pouvez me joindre au 022 333 44 55 ou par courriel a sylvie.vallee@exemple.ch. Merci de m'envoyer la facture."
+        extractions:
+          - criterion_id: "demarche_signalement"
+            extraction_text: "renouvellement de mon permis de stationnement macaron B"
+          - criterion_id: "demandeur"
+            extraction_text: "Madame Vallee"
+          - criterion_id: "localisation"
+            extraction_text: "45 Avenue de la Gare, 1260 Nyon"
+          - criterion_id: "action_attendue"
+            extraction_text: "Merci de m'envoyer la facture"
+          - criterion_id: "coordonnees_ref"
+            extraction_text: "VD 123456. Vous pouvez me joindre au 022 333 44 55 ou par courriel a sylvie.vallee@exemple.ch"
+      - text: "Il y a plein de dechets laisses a l'abandon pres du parc, c'est honteux. J'espere que vous allez faire quelque chose bientot."
+        extractions:
+          - criterion_id: "demarche_signalement"
+            extraction_text: "plein de dechets laisses a l'abandon pres du parc"
+          - criterion_id: "action_attendue"
+            extraction_text: "vous allez faire quelque chose bientot"
+      - text: "Bonjour, je vous signale un lampadaire eteint au chemin des Ecoles 12 a Renens, juste devant l'arret de bus. Merci de planifier une intervention. Je suis joignable au 079 222 33 44 si besoin."
+        extractions:
+          - criterion_id: "demarche_signalement"
+            extraction_text: "je vous signale un lampadaire eteint"
+          - criterion_id: "localisation"
+            extraction_text: "au chemin des Ecoles 12 a Renens, juste devant l'arret de bus"
+          - criterion_id: "action_attendue"
+            extraction_text: "Merci de planifier une intervention"
+          - criterion_id: "coordonnees_ref"
+            extraction_text: "079 222 33 44"
+    coverage_item:
+      - id: "demarche_signalement"
+        expected_info: "Demarche, question ou signalement clairement formule; un simple mecontentement sans objet traitable ne suffit pas."
+        weight: 0.1
+      - id: "demandeur"
+        expected_info: "Identite du demandeur formulee de facon exploitable."
+        weight: 0.2
+      - id: "localisation"
+        expected_info: "Adresse, commune, lieu ou infrastructure precise de facon exploitable; 'pres de chez moi' ne suffit pas."
+        weight: 0.3
+      - id: "action_attendue"
+        expected_info: "Action attendue clairement exprimee; une urgence sans demande exploitable ne suffit pas."
+        weight: 0.1
+      - id: "coordonnees_ref"
+        expected_info: "Coordonnees ou reference de dossier utiles au traitement."
+        weight: 0.3
+
+  demandes_devis_construction:
+    name: "Demande devis construction"
+    description: "Analyse des demandes de devis travaux"
+    inference_engine_key: "remote_groq_llama31_8b_instant"
+    le_few_shot:
+      - text: "J'aimerais construire une piscine dans mon jardin. Quel est le prix environ ?"
+        extractions: []
+      - text: "On a le projet de construire un grand garage annexe a notre chalet a Verbier. L'idee c'est d'avoir une structure bois de 40m2. On cherche un charpentier ou une entreprise pour s'en occuper."
+        extractions:
+          - criterion_id: "nature_projet"
+            extraction_text: "construire un grand garage annexe"
+          - criterion_id: "contexte_site"
+            extraction_text: "chalet a Verbier"
+      - text: "Bonjour, nous souhaitons un devis pour creer une extension de 28 m2 sur une villa existante a Gland. Budget souhaite autour de 180000 CHF et demarrage ideal en septembre. Les plans d'architecte sont finalises et la demande de permis part la semaine prochaine."
+        extractions:
+          - criterion_id: "nature_projet"
+            extraction_text: "creer une extension de 28 m2 sur une villa existante"
+          - criterion_id: "budget_delai"
+            extraction_text: "Budget souhaite autour de 180000 CHF et demarrage ideal en septembre"
+          - criterion_id: "contexte_site"
+            extraction_text: "a Gland"
+          - criterion_id: "maturite_dossier"
+            extraction_text: "Les plans d'architecte sont finalises et la demande de permis part la semaine prochaine"
+      - text: "Projet renovation immeuble locatif a Lausanne. Reprise facade et etancheite toiture. Nous avons deja un rapport d'etat et un avant-projet, mais pas encore de budget arbitre ni de date de lancement."
+        extractions:
+          - criterion_id: "nature_projet"
+            extraction_text: "Reprise facade et etancheite toiture"
+          - criterion_id: "contexte_site"
+            extraction_text: "immeuble locatif a Lausanne"
+          - criterion_id: "maturite_dossier"
+            extraction_text: "Nous avons deja un rapport d'etat et un avant-projet"
+    coverage_item:
+      - id: "nature_projet"
+        expected_info: "Type de travaux, objectif et perimetre general."
+        weight: 0.3
+      - id: "budget_delai"
+        expected_info: "Budget cible, enveloppe financiere, calendrier souhaite ou echeance de realisation."
+        weight: 0.2
+      - id: "contexte_site"
+        expected_info: "Localisation, existant, acces ou contraintes du site."
+        weight: 0.2
+      - id: "maturite_dossier"
+        expected_info: "Plans, permis ou niveau d'avancement du dossier."
+        weight: 0.3
+
+  rapports_chantier:
+    name: "Rapport chantier"
+    description: "Analyse des rapports d'avancement chantier"
+    inference_engine_key: "remote_groq_llama31_8b_instant"
+    le_few_shot:
+      - text: "Villa Favre - 15/03. Pose de l'isolation du toit effectuee. Equipe au complet. RAS. Lundi : debut des tuiles."
+        extractions:
+          - criterion_id: "chantier"
+            extraction_text: "Villa Favre"
+          - criterion_id: "avancement"
+            extraction_text: "Pose de l'isolation du toit effectuee"
+          - criterion_id: "prochaine"
+            extraction_text: "Lundi : debut des tuiles"
+      - text: "Chantier Mirabaud - 02/02/2026. Pose cloisons terminee. Equipe : 3 personnes. RAS, aucun probleme constate. Demain : rebouchage et poncage."
+        extractions:
+          - criterion_id: "chantier"
+            extraction_text: "Chantier Mirabaud"
+          - criterion_id: "avancement"
+            extraction_text: "Pose cloisons terminee"
+          - criterion_id: "prochaine"
+            extraction_text: "Demain : rebouchage et poncage"
+      - text: "SUIVI HEBDO - Complexe Leman. FAIT : Pose menuiseries exterieures sur batiment A (15 fenetres), etancheite fondations validee. RISQUES : fenetres du 2eme etage non livrees par le fournisseur, retard de 3 jours previsible sur ce poste. SUITE : finir jointage des facades au RDC, attaquer placo sur batiment B."
+        extractions:
+          - criterion_id: "chantier"
+            extraction_text: "Complexe Leman"
+          - criterion_id: "avancement"
+            extraction_text: "Pose menuiseries exterieures sur batiment A (15 fenetres), etancheite fondations validee"
+          - criterion_id: "incident"
+            extraction_text: "fenetres du 2eme etage non livrees par le fournisseur, retard de 3 jours previsible sur ce poste"
+          - criterion_id: "prochaine"
+            extraction_text: "finir jointage des facades au RDC, attaquer placo sur batiment B"
+      - text: "Projet Alpha - 12/04. Une fuite d'eau est apparue au sous-sol suite au percement pour la VMC. Arret temporaire de la perceuse. Besoin d'intervention plombier urgent."
+        extractions:
+          - criterion_id: "chantier"
+            extraction_text: "Projet Alpha"
+          - criterion_id: "incident"
+            extraction_text: "Une fuite d'eau est apparue au sous-sol suite au percement pour la VMC. Arret temporaire de la perceuse. Besoin d'intervention plombier urgent"
+      - text: "Lotissement Les Chenes. Impossible de continuer le terrassement ce matin : pelleteuse en panne (hydraulique). Intervention depanneur en cours. Reprise prevue apres-midi si c'est repare."
+        extractions:
+          - criterion_id: "chantier"
+            extraction_text: "Lotissement Les Chenes"
+          - criterion_id: "avancement"
+            extraction_text: "Impossible de continuer le terrassement ce matin : pelleteuse en panne"
+          - criterion_id: "prochaine"
+            extraction_text: "Reprise prevue apres-midi si c'est repare"
+    coverage_item:
+      - id: "chantier"
+        expected_info: "Identification explicite du chantier."
+        weight: 0.25
+      - id: "avancement"
+        expected_info: "Description concrete des travaux realises."
+        weight: 0.25
+      - id: "incident"
+        expected_info: "Probleme, anomalie, risque ou mesure de mitigation explicite; 'RAS', 'pas de souci', 'aucun probleme', 'meteo OK' ou un simple arret meteo ne comptent pas."
+        weight: 0.25
+      - id: "prochaine"
+        expected_info: "Tache planifiee pour la suite ou le lendemain."
+        weight: 0.25
+
+  suivi_scolaire:
+    name: "Suivi scolaire"
+    description: "Analyse des signalements et points de suivi pedagogique"
+    inference_engine_key: "remote_groq_llama31_8b_instant"
+    le_few_shot:
+      - text: "Tom, 6P, a eu beaucoup de peine a rester concentre cette semaine en mathematiques."
+        extractions:
+          - criterion_id: "eleve"
+            extraction_text: "Tom, 6P"
+          - criterion_id: "situation"
+            extraction_text: "a eu beaucoup de peine a rester concentre cette semaine en mathematiques"
+      - text: "Suivi Lea Martin, 8P. Depuis le 10 janvier, plusieurs devoirs non rendus et deux oublis de materiel. Appel avec la maman lundi dernier et mise en place d'un tableau de suivi en classe. Prochaine etape : point avec la psychologue scolaire vendredi."
+        extractions:
+          - criterion_id: "eleve"
+            extraction_text: "Lea Martin, 8P"
+          - criterion_id: "situation"
+            extraction_text: "plusieurs devoirs non rendus et deux oublis de materiel"
+          - criterion_id: "historique"
+            extraction_text: "Appel avec la maman lundi dernier et mise en place d'un tableau de suivi en classe"
+          - criterion_id: "suite"
+            extraction_text: "Prochaine etape : point avec la psychologue scolaire vendredi"
+      - text: "Concernant Yanis, entretien fait avec les parents hier apres l'incident de recreation. L'eleve s'est excuse et un nouveau point est prevu dans deux semaines avec l'enseignante titulaire."
+        extractions:
+          - criterion_id: "eleve"
+            extraction_text: "Yanis"
+          - criterion_id: "situation"
+            extraction_text: "incident de recreation"
+          - criterion_id: "historique"
+            extraction_text: "entretien fait avec les parents hier"
+          - criterion_id: "suite"
+            extraction_text: "un nouveau point est prevu dans deux semaines avec l'enseignante titulaire"
+    coverage_item:
+      - id: "eleve"
+        expected_info: "Nom de l'eleve, classe ou groupe concerne."
+        weight: 0.25
+      - id: "situation"
+        expected_info: "Difficulte, incident ou observation principale detaillee."
+        weight: 0.25
+      - id: "historique"
+        expected_info: "Faits, dates ou actions deja realisees."
+        weight: 0.25
+      - id: "suite"
+        expected_info: "Mesure demandee ou prochaine etape specifique."
+        weight: 0.25
+
+  demandes_absence_rh:
+    name: "Demande absence RH"
+    description: "Analyse des demandes de conge et absences collaborateurs"
+    inference_engine_key: "remote_groq_gpt_oss_20b"
+    le_few_shot:
+      - text: "Je souhaiterais poser deux jours de conge la semaine prochaine."
+        extractions:
+          - criterion_id: "periode"
+            extraction_text: "deux jours de conge la semaine prochaine"
+      - text: "Bonjour, Marie Dupont souhaite etre absente du 12 au 16 fevrier inclus pour conge familial. Bernard couvre les urgences de l'equipe pendant cette periode."
+        extractions:
+          - criterion_id: "collaborateur"
+            extraction_text: "Marie Dupont"
+          - criterion_id: "periode"
+            extraction_text: "du 12 au 16 fevrier inclus"
+          - criterion_id: "motif"
+            extraction_text: "conge familial"
+          - criterion_id: "validation"
+            extraction_text: "Bernard couvre les urgences de l'equipe pendant cette periode"
+      - text: "Demande RH - Samir Benali, equipe logistique. Absence pour formation externe du 3 mars 13h au 4 mars 17h. Accord du manager confirme ce matin et planning d'astreinte deja reaffecte a Nora."
+        extractions:
+          - criterion_id: "collaborateur"
+            extraction_text: "Samir Benali, equipe logistique"
+          - criterion_id: "periode"
+            extraction_text: "du 3 mars 13h au 4 mars 17h"
+          - criterion_id: "motif"
+            extraction_text: "formation externe"
+          - criterion_id: "validation"
+            extraction_text: "Accord du manager confirme ce matin et planning d'astreinte deja reaffecte a Nora"
+    coverage_item:
+      - id: "collaborateur"
+        expected_info: "Collaborateur ou equipe concerne."
+        weight: 0.25
+      - id: "periode"
+        expected_info: "Dates ou duree de l'absence."
+        weight: 0.25
+      - id: "motif"
+        expected_info: "Motif ou type d'absence."
+        weight: 0.25
+      - id: "validation"
+        expected_info: "Validation manager ou modalite de couverture."
+        weight: 0.25
+
+  suivi_projet:
+    name: "Suivi projet"
+    description: "Analyse des points d'avancement et comptes-rendus projet"
+    inference_engine_key: "remote_groq_llama31_8b_instant"
+    le_few_shot:
+      - text: "Le developpement de l'App Mobile est dans les temps. On verra la semaine prochaine."
+        extractions:
+          - criterion_id: "projet"
+            extraction_text: "l'App Mobile"
+      - text: "Reunion hebdomadaire pour le Portail RH. La phase de test utilisateur est lancee et se passe bien. Cependant on a un souci de performance sur la base de donnees avec les exports. A suivre pour corriger."
+        extractions:
+          - criterion_id: "projet"
+            extraction_text: "Portail RH"
+          - criterion_id: "avancement"
+            extraction_text: "La phase de test utilisateur est lancee et se passe bien"
+          - criterion_id: "blocage"
+            extraction_text: "souci de performance sur la base de donnees avec les exports"
+      - text: "Bilan mensuel Migration CRM. Ce qui a ete fait : la moitie des comptes clients a ete migree avec succes sans perte de donnee (1500 comptes). Points critiques : on n'a toujours pas recu les cles API du fournisseur marketing pour l'etape 2, ce qui bloque l'envoi des newsletters. Actions a prendre : Marc doit appeler le support du fournisseur ce jeudi, et on fera un test d'integration partiel vendredi matin."
+        extractions:
+          - criterion_id: "projet"
+            extraction_text: "Migration CRM"
+          - criterion_id: "avancement"
+            extraction_text: "la moitie des comptes clients a ete migree avec succes sans perte de donnee (1500 comptes)"
+          - criterion_id: "blocage"
+            extraction_text: "on n'a toujours pas recu les cles API du fournisseur marketing pour l'etape 2, ce qui bloque l'envoi des newsletters"
+          - criterion_id: "suite"
+            extraction_text: "Marc doit appeler le support du fournisseur ce jeudi, et on fera un test d'integration partiel vendredi matin"
+    coverage_item:
+      - id: "projet"
+        expected_info: "Projet, sprint ou jalon concerne clairement identifie."
+        weight: 0.2
+      - id: "avancement"
+        expected_info: "Etat d'avancement ou resultat obtenu de maniere concrete; une formule vague comme 'ca avance' ne suffit pas."
+        weight: 0.3
+      - id: "blocage"
+        expected_info: "Blocage, risque ou point de vigilance formule de maniere exploitable et specifique."
+        weight: 0.2
+      - id: "suite"
+        expected_info: "Prochaine action avec responsable ou echeance explicite; 'on se reparle' ne suffit pas."
+        weight: 0.3
+
+  demandes_evolution_produit:
+    name: "Demande evolution produit"
+    description: "Analyse des demandes d'evolution fonctionnelle transmises a l'equipe de developpement. Ne s'applique pas aux bugs."
+    inference_engine_key: "remote_groq_gpt_oss_20b"
+    le_few_shot:
+      - text: "Les comptables disent que la page de saisie des frais est trop compliquee a utiliser."
+        extractions:
+          - criterion_id: "besoin_metier"
+            extraction_text: "la page de saisie des frais est trop compliquee a utiliser"
+      - text: "Le composant d'authentification a des pertes de session aleatoires, c'est super frustrant. Ca serait bien de le stabiliser."
+        extractions:
+          - criterion_id: "besoin_metier"
+            extraction_text: "pertes de session aleatoires, c'est super frustrant"
+      - text: "Le service logistique aimerait avoir un bouton 'Imprimer les etiquettes en masse' sur le tableau de bord des expeditions. Ca leur eviterait de cliquer 50 fois. C'est assez pressant avant le pic de decembre."
+        extractions:
+          - criterion_id: "besoin_metier"
+            extraction_text: "Ca leur eviterait de cliquer 50 fois"
+          - criterion_id: "evolution_attendue"
+            extraction_text: "avoir un bouton 'Imprimer les etiquettes en masse' sur le tableau de bord des expeditions"
+          - criterion_id: "priorite_contrainte"
+            extraction_text: "assez pressant avant le pic de decembre"
+      - text: "US - Mode sombre pour l'application Mobile. Probleme : nos chauffeurs livreurs travaillent de nuit et l'ecran actuel les eblouit, causant de la fatigue visuelle. Solution proposee : un toggle 'Dark Mode' dans les parametres du profil. Regles de test : 1. Le bouton bascule instantanement le theme de couleur, 2. La preference est sauvegardee localement, 3. Les contrastes doivent respecter la norme AAA de lisibilite. Livraison attendue absolument dans le sprint 14 pour la prochaine mise a jour majeure."
+        extractions:
+          - criterion_id: "besoin_metier"
+            extraction_text: "nos chauffeurs livreurs travaillent de nuit et l'ecran actuel les eblouit, causant de la fatigue visuelle"
+          - criterion_id: "evolution_attendue"
+            extraction_text: "un toggle 'Dark Mode' dans les parametres du profil"
+          - criterion_id: "criteres_acceptation"
+            extraction_text: "Regles de test : 1. Le bouton bascule instantanement le theme de couleur, 2. La preference est sauvegardee localement, 3. Les contrastes doivent respecter la norme AAA de lisibilite"
+          - criterion_id: "priorite_contrainte"
+            extraction_text: "absolument dans le sprint 14 pour la prochaine mise a jour majeure"
+    coverage_item:
+      - id: "besoin_metier"
+        expected_info: "Probleme utilisateur ou objectif metier concret a resoudre. Ne pas extraire s'il s'agit d'un bug ou dysfonctionnement."
+        weight: 0.2
+      - id: "evolution_attendue"
+        expected_info: "Fonctionnalite nouvelle ou changement attendu explicite. 'Corriger' ou 'reparer' un bug n'est pas une evolution."
+        weight: 0.15
+      - id: "criteres_acceptation"
+        expected_info: "Regles de gestion specifiques ou cas de test explicites definissant precisement le comportement attendu. Une simple demande n'est pas un critere d'acceptation detaille."
+        weight: 0.35
+      - id: "priorite_contrainte"
+        expected_info: "Priorite absolue, echeance (release, sprint) ou contrainte technique de livraison formulee explicitement."
+        weight: 0.3
+
+  validation_qualite:
+    name: "Validation qualite"
+    description: "Analyse des controles qualite et decisions de liberation"
+    inference_engine_key: "remote_groq_llama31_8b_instant"
+    le_few_shot:
+      - text: "Le test du lot F-809 a echoue. Quelques taches noires dessus. Poubelle."
+        extractions:
+          - criterion_id: "lot"
+            extraction_text: "lot F-809"
+      - text: "Inspection des tubes en acier lot F-809 a 14h. On a remarque des traces de rouille en surface. Bloquez la palette en attente du responsable qualite."
+        extractions:
+          - criterion_id: "lot"
+            extraction_text: "lot F-809"
+          - criterion_id: "ecart"
+            extraction_text: "des traces de rouille en surface"
+          - criterion_id: "decision"
+            extraction_text: "Bloquez la palette en attente du responsable qualite"
+          - criterion_id: "tracabilite"
+            extraction_text: "Inspection des tubes en acier lot F-809 a 14h"
+      - text: "Controle dimensionnel sur echantillon de 20 pieces du lot C-77102. Deux pieces hors tolerance a +0.8 mm sur la largeur. Decision : mise en quarantaine et tri complet du lot."
+        extractions:
+          - criterion_id: "lot"
+            extraction_text: "lot C-77102"
+          - criterion_id: "ecart"
+            extraction_text: "Deux pieces hors tolerance a +0.8 mm sur la largeur"
+          - criterion_id: "decision"
+            extraction_text: "mise en quarantaine et tri complet du lot"
+          - criterion_id: "tracabilite"
+            extraction_text: "echantillon de 20 pieces"
+          - criterion_id: "quantification_seuil"
+            extraction_text: "Deux pieces hors tolerance a +0.8 mm sur la largeur"
+    coverage_item:
+      - id: "lot"
+        expected_info: "Reference precise du lot ou du produit controle."
+        weight: 0.1
+      - id: "ecart"
+        expected_info: "Nature de l'ecart ou du defaut de facon exploitable; une formule tres vague ne suffit pas."
+        weight: 0.1
+      - id: "decision"
+        expected_info: "Decision formelle explicite de blocage, liberation, quarantaine, tri ou recontrole; 'A revoir' seul ne suffit pas."
+        weight: 0.1
+      - id: "tracabilite"
+        expected_info: "Date ou moment de controle, taille d'echantillon, reference produit ou action de suivi precise; le seul fait de dire 'controle reception' ne suffit pas."
+        weight: 0.25
+      - id: "quantification_seuil"
+        expected_info: "Mesure, comptage, taux, tolerance ou seuil d'acceptation explicite."
+        weight: 0.45

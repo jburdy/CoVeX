@@ -1,0 +1,27 @@
+[project]
+name = "covex-backend"
+version = "0.1.0"
+description = "CoVeX backend bootstrap"
+requires-python = ">=3.14"
+dependencies = [
+  "fastapi>=0.128.0,<0.129.0",
+  "langextract[openai]>=1.1.1",
+  "pydantic>=2.0.0,<3.0.0",
+  "uvicorn>=0.35.0,<0.36.0",
+]
+
+[dependency-groups]
+dev = [
+  "httpx>=0.28.0,<0.29.0",
+  "pytest>=8.4.0,<9.0.0",
+  "pyyaml>=6.0.0,<7.0.0",
+  "ruff>=0.12.0,<0.13.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "tests"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
